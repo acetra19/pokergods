@@ -6,7 +6,6 @@ export default function HULobby({ wallet, onMatch }: { wallet: string, onMatch: 
   const [queueSize, setQueueSize] = useState<number>(0)
   const [joined, setJoined] = useState<boolean>(false)
   const [leaders, setLeaders] = useState<any[]>([])
-  const [wsStatus, setWsStatus] = useState<'init'|'open'|'retrying'|'closed'>('init')
   const [hint, setHint] = useState<string>('')
   // show username from profile instead of wallet string
   const [displayName, setDisplayName] = useState<string>('')
@@ -27,7 +26,7 @@ export default function HULobby({ wallet, onMatch }: { wallet: string, onMatch: 
       if (m?.type==='tournament' && m.payload?.event==='hand_state'){
         // no-op
       }
-    }, (status)=> setWsStatus(status))
+    })
     // Initial und periodisch Queue-Status laden
     const poll = async () => {
       try {
@@ -79,7 +78,6 @@ export default function HULobby({ wallet, onMatch }: { wallet: string, onMatch: 
 
   return (
     <div className="hu-panel" style={{ border:'1px solid #e6e6e6', padding:12, borderRadius:10, position:'relative' }}>
-      <div className={`ws-indicator ${wsStatus}`}>{wsStatus}</div>
       <h3>Heads-Up Lobby</h3>
       <div className="hu-precard" style={{ border:'1px solid #e6e6e6', borderRadius:10, padding:10, marginBottom:10 }}>
         <div style={{ display:'flex', gap:12, alignItems:'center', flexWrap:'wrap' }}>
