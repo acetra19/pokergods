@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
 import { adminLogin, listTables, huElo, adminResetSession } from '../api'
 
-export default function AdminPanel({ lobby: _lobby, setLobby, onSpectate }: { lobby: any, setLobby: (l:any)=>void, onSpectate: (tableId: string)=>void }) {
+export default function AdminPanel({ lobby: _lobby, setLobby: _setLobby, onSpectate }: { lobby: any, setLobby: (l:any)=>void, onSpectate: (tableId: string)=>void }) {
   const [token, setToken] = useState<string>(()=>{
     try { return sessionStorage.getItem('pg_admin_token') ?? '' } catch { return '' }
   })
