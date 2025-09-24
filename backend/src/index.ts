@@ -800,8 +800,8 @@ app.post("/admin/hu/setStacks", express.json(), (req, res) => {
   }
 });
 
-// Erzwinge 8080, damit Frontend (VITE_BACKEND_URL) konsistent ist
-const PORT = 8080;
+// Listen on Railway PORT or fallback to 8080 locally
+const PORT = Number(process.env.PORT || 8080);
 server.listen(PORT, () => {
   // eslint-disable-next-line no-console
   console.log("server listening on", PORT);
