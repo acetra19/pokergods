@@ -13,6 +13,17 @@
   -moz-osx-font-smoothing: grayscale;
 }
 
+/* Global custom cursor across the entire site */
+html, body, #root {
+  cursor: url('../cursor/pokercursor.png') 8 2, auto;
+}
+a, button, [role="button"], .btn {
+  cursor: url('../cursor/pokercursor.png') 8 2, pointer;
+}
+input, textarea, select {
+  cursor: url('../cursor/pokercursor.png') 8 2, text;
+}
+
 a {
   font-weight: 500;
   color: #646cff;
@@ -24,10 +35,15 @@ a:hover {
 
 body {
   margin: 0;
-  display: flex;
-  place-items: center;
   min-width: 320px;
   min-height: 100vh;
+  background: linear-gradient(135deg, #3c0a6a 0%, #2a0a4b 35%, #1a0830 65%, #ffd54f 120%);
+  background-attachment: fixed;
+  background-repeat: no-repeat;
+  background-size: cover;
+  display: flex;
+  place-items: center;
+  cursor: url('../cursor/pokercursor.png') 8 2, auto;
 }
 
 h1 {
@@ -43,7 +59,7 @@ button {
   font-weight: 500;
   font-family: inherit;
   background-color: #1a1a1a;
-  cursor: pointer;
+  cursor: url('../cursor/pokercursor.png') 8 2, pointer;
   transition: border-color 0.25s;
 }
 button:hover {

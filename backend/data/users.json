@@ -1,0 +1,14 @@
+{
+  "Yoyo": {
+    "username": "Yoyo",
+    "wallet": "8z43LVNL5AWtRFP1o4VDyRRuNL5PADg33A5CbUDq713p",
+    "passwordHash": "05f3497cef66caacf888ca8df96a0dab1cbd0519e7139d58401d71c7f8e6ebac",
+    "createdAt": 1758749504900
+  },
+  "King": {
+    "username": "King",
+    "wallet": "7M1Pj2phktjir53QfupSyV1UnyNrPMxvybZmZdKgpqgJ",
+    "passwordHash": "d2873e03ed2aeae0464ad4707c560b79cf0ce11993e3dc575f0a8d21ca209362",
+    "createdAt": 1758749897648
+  }
+}

@@ -1,0 +1,76 @@
+.landing .brand {
+  background: linear-gradient(90deg, #ffd54f, #e0b3ff, #ffd54f);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+  animation: brandSheen 6s linear infinite;
+}
+@keyframes brandSheen {
+  0% { filter: brightness(1); }
+  50% { filter: brightness(1.15); }
+  100% { filter: brightness(1); }
+}
+
+.landing .hero {
+  position: relative;
+  overflow: hidden;
+}
+.landing .hero::after {
+  content: '';
+  position: absolute;
+  inset: -20%;
+  background: radial-gradient(circle at 20% 10%, rgba(255,213,79,0.12), transparent 40%),
+              radial-gradient(circle at 80% 30%, rgba(176,128,255,0.12), transparent 45%),
+              radial-gradient(circle at 50% 80%, rgba(255,213,79,0.10), transparent 40%);
+  filter: blur(18px);
+  animation: heroGlow 12s ease-in-out infinite alternate;
+  pointer-events: none;
+}
+@keyframes heroGlow {
+  0% { transform: translate3d(0,0,0) scale(1); opacity: 0.9; }
+  100% { transform: translate3d(0,-8px,0) scale(1.03); opacity: 1; }
+}
+
+.landing .cta-primary { display:flex; align-items:center; justify-content:center; margin-top: 14px; }
+.landing .cta-secondary { display:flex; align-items:center; justify-content:center; gap: 10px; margin-top: 10px; }
+.landing .cta-primary .btn,
+.landing .cta-primary .btn-primary,
+.landing .cta-secondary .btn,
+.landing .cta-secondary .btn-primary { position: relative; }
+.landing .cta-primary .btn:hover::after,
+.landing .cta-primary .btn-primary:hover::after { content:''; position:absolute; left:-2px; right:-2px; top:-2px; bottom:-2px; border-radius:12px; box-shadow:0 0 20px rgba(255,213,79,0.25), 0 0 32px rgba(176,128,255,0.18); pointer-events:none; }
+
+.landing .cta-row .play-now {
+  padding: 14px 22px;
+  font-size: 18px;
+  font-weight: 900;
+  letter-spacing: 0.3px;
+  border-radius: 12px;
+}
+
+.landing .features .feat {
+  transition: transform 140ms ease, box-shadow 180ms ease, border-color 180ms ease;
+}
+.landing .cta-secondary .btn-ghost { background: transparent; border-color: rgba(255,213,79,0.22); color:#ffd54f; }
+.landing .cta-secondary .btn-ghost:hover { background: rgba(255,213,79,0.08); }
+
+.landing .cta-primary .play-now { padding: 16px 26px; font-size: 20px; font-weight: 1000; letter-spacing: 0.4px; border-radius: 14px; }
+.landing .features .feat:hover {
+  transform: translateY(-3px);
+  box-shadow: 0 12px 28px rgba(0,0,0,0.45), inset 0 0 40px rgba(91,43,138,0.28);
+  border-color: rgba(255,213,79,0.35);
+}
+
+.landing .how h2 {
+  position: relative;
+  padding-bottom: 6px;
+}
+.landing .how h2::after {
+  content: '';
+  position: absolute;
+  left: 0; bottom: 0; width: 64px; height: 3px;
+  background: linear-gradient(90deg, #ffd54f, rgba(255,213,79,0.0));
+  border-radius: 3px;
+}
+
+
