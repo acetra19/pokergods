@@ -1,11 +1,13 @@
 import { useEffect, useState } from 'react'
-import { getProfile, saveProfile, uploadAvatar } from '../api'
+import { getProfile, saveProfile, uploadAvatar, authChangePassword } from '../api'
 
 export default function ProfilePanel({ wallet }: { wallet: string }){
   const [username, setUsername] = useState('')
   const [avatarUrl, setAvatarUrl] = useState('')
   const [hint, setHint] = useState<string>('')
   const [loading, setLoading] = useState<boolean>(false)
+  const [oldPassword, setOldPassword] = useState('')
+  const [newPassword, setNewPassword] = useState('')
 
   useEffect(()=>{
     if (!wallet) return
@@ -71,6 +73,26 @@ export default function ProfilePanel({ wallet }: { wallet: string }){
             {avatarUrl ? (<img src={avatarUrl} alt="avatar" style={{ width:'100%', height:'100%', objectFit:'cover' }} />) : (<span style={{ fontWeight:800 }}>{(username||wallet).slice(0,2).toUpperCase()}</span>)}
           </div>
           <div style={{ fontWeight:800 }}>{username || '(no username set)'}</div>
+        </div>
+      </div>
+      <div style={{ marginTop:16 }}>
+        <b>Change Password</b>
+        <div style={{ display:'grid', gridTemplateColumns:'140px 1fr', gap:8, alignItems:'center', marginTop:6 }}>
+          <label>Old Password</label>
+          <input type="password" value={oldPassword} onChange={(e)=> setOldPassword(e.target.value)} placeholder="old password" />
+          <label>New Password</label>
+          <input type="password" value={newPassword} onChange={(e)=> setNewPassword(e.target.value)} placeholder="new password" />
+        </div>
+        <div style={{ marginTop:10 }}>
+          <button className="btn btn-primary" onClick={async ()=>{
+            setHint('')
+            if (!username || !oldPassword || !newPassword) { setHint('Please fill all password fields.'); return }
+            try {
+              await authChangePassword(username, oldPassword, newPassword)
+              setHint('Password changed ✓')
+              setOldPassword(''); setNewPassword('')
+            } catch(e:any){ setHint(e?.message||'Password change failed') }
+          }} disabled={loading || !oldPassword || !newPassword}>Change Password</button>
         </div>
       </div>
     </div>

@@ -281,4 +281,15 @@ export async function authLoginUser(username: string, password: string) {
   try { return JSON.parse(txt) } catch { return { ok:true } }
 }
 
+export async function authChangePassword(username: string, oldPassword: string, newPassword: string) {
+  const res = await fetch(`${BACKEND}/auth/changePassword`, {
+    method:'POST', headers:{ 'Content-Type':'application/json' }, body: JSON.stringify({ username, oldPassword, newPassword })
+  })
+  const txt = await res.text()
+  if (!res.ok) {
+    try { const j = JSON.parse(txt); throw new Error(j?.error || 'change password failed') } catch { throw new Error(txt || 'change password failed') }
+  }
+  try { return JSON.parse(txt) } catch { return { ok:true } }
+}
+
 
