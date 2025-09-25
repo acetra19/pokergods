@@ -47,6 +47,17 @@ export function connectWS(
         }
       };
       ws.onerror = () => { try { ws && ws.close(); } catch {} };
+      // Identify current wallet (for online counter). Best-effort: wallet in sessionStorage
+      try {
+        const w = sessionStorage.getItem('pg_wallet')
+        if (w && ws && ws.readyState === ws.OPEN) {
+          ws.send(JSON.stringify({ type:'identify', wallet: w }))
+        } else {
+          setTimeout(()=>{ try {
+            const w2 = sessionStorage.getItem('pg_wallet'); if (w2 && ws && ws.readyState === ws.OPEN) ws.send(JSON.stringify({ type:'identify', wallet: w2 }))
+          } catch {} }, 200)
+        }
+      } catch {}
     }
     waitForHealth().then((ok) => {
       if (ok) openWS(); else {

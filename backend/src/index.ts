@@ -423,6 +423,19 @@ app.get("/hu/elo", (_req, res) => {
 const server = http.createServer(app);
 const wss = new WebSocketServer({ server });
 
+// Track online wallets (any page with an active WS connection and identify)
+const wsToWallet = new Map<WebSocket, string>();
+const walletConnCount = new Map<string, number>();
+function incOnline(wallet: string) {
+  const n = (walletConnCount.get(wallet) ?? 0) + 1;
+  walletConnCount.set(wallet, n);
+}
+function decOnline(wallet: string) {
+  const n = (walletConnCount.get(wallet) ?? 0) - 1;
+  if (n <= 0) walletConnCount.delete(wallet); else walletConnCount.set(wallet, n);
+}
+function onlineCount(): number { return walletConnCount.size }
+
 type ServerMessage =
   | { type: "welcome"; serverTime: number }
   | { type: "echo"; payload: string }
@@ -434,9 +447,28 @@ wss.on("connection", (ws: WebSocket) => {
   ws.send(JSON.stringify(welcome));
 
   ws.on("message", (raw: Buffer) => {
-    const echo: ServerMessage = { type: "echo", payload: raw.toString() };
-    ws.send(JSON.stringify(echo));
+    try {
+      const txt = raw.toString();
+      let obj: any = null;
+      try { obj = JSON.parse(txt) } catch {}
+      if (obj && obj.type === 'identify' && typeof obj.wallet === 'string') {
+        const prev = wsToWallet.get(ws);
+        if (prev && prev !== obj.wallet) { decOnline(prev) }
+        wsToWallet.set(ws, obj.wallet);
+        incOnline(obj.wallet);
+        return;
+      }
+      const echo: ServerMessage = { type: "echo", payload: txt };
+      ws.send(JSON.stringify(echo));
+    } catch {}
   });
+
+  ws.on('close', () => {
+    try {
+      const w = wsToWallet.get(ws);
+      if (w) { decOnline(w); wsToWallet.delete(ws) }
+    } catch {}
+  })
 });
 
 // Broadcast tournament updates

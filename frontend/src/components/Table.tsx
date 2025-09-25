@@ -38,7 +38,7 @@ export default function TableView({ wallet, tableId }: { wallet?: string, tableI
   const [dealFx, setDealFx] = useState<Array<{ id:string; x:number; y:number; rot:number }>>([])
   const [stageAnimKey, setStageAnimKey] = useState<number>(0)
   const [actorAnimKey, setActorAnimKey] = useState<number>(0)
-  const [wsStatus, setWsStatus] = useState<'init'|'open'|'retrying'|'closed'>('init')
+  const [, setWsStatus] = useState<'init'|'open'|'retrying'|'closed'>('init')
   const [riverPulse, setRiverPulse] = useState<number>(0)
   const [overlayCooldown, setOverlayCooldown] = useState<boolean>(false)
   const [seatBloom, setSeatBloom] = useState<Record<string, number>>({})
@@ -485,6 +485,8 @@ const [showEmoji, setShowEmoji] = useState(false)
       tableSnapshotRef.current = null
       // Reset reveal flags between hands
       try { inRevealUIRef.current = false } catch {}
+      // Reset frozen chip displays/committed maps to avoid stale zeros at new hand
+      try { displayChipsRef.current = {}; committedRef.current = {} } catch {}
       // subtle shuffle feedback
       try {
         const felt = feltRef.current
@@ -975,12 +977,12 @@ const [showEmoji, setShowEmoji] = useState(false)
             })()}</div>
             <div className={`chip-pill ${bloomActive ? 'chip-bloom' : ''}`}>{(() => {
               const pid = seat.playerId
-              const frozen = displayChipsRef.current?.[pid]
-            const serverStack = player?.chips ?? seat.chips ?? 0
-            if (Number.isFinite(frozen)) return `${frozen} chips`
-            const committedNow = Number(actionState?.committed?.[pid] ?? committedRef.current?.[pid] ?? (hand && (hand[0]?.showdownCommitted?.[pid] ?? hand[0]?.committed?.[pid])) ?? 0)
-              const isAllInFlow = anyAllIn || (hand && hand[0]?.allInLocked && hand[0]?.bettingClosed) || street === 'showdown'
-              const display = isAllInFlow ? Math.max(0, serverStack - committedNow) : serverStack
+              const serverStack = player?.chips ?? seat.chips ?? 0
+              const committedNow = Number(actionState?.committed?.[pid] ?? committedRef.current?.[pid] ?? (hand && (hand[0]?.showdownCommitted?.[pid] ?? hand[0]?.committed?.[pid])) ?? 0)
+              const isAllInFlow = inRevealUIRef.current || anyAllIn || (hand && hand[0]?.allInLocked && hand[0]?.bettingClosed) || street === 'showdown'
+              const useFrozen = isAllInFlow && Number.isFinite(displayChipsRef.current?.[pid])
+              const frozen = useFrozen ? Number(displayChipsRef.current?.[pid]) : null
+              const display = useFrozen ? frozen! : (isAllInFlow ? Math.max(0, serverStack - committedNow) : serverStack)
               return `${display} chips`
             })()}</div>
           </div>
@@ -995,13 +997,11 @@ const [showEmoji, setShowEmoji] = useState(false)
         <div className="seat-chips" aria-hidden>
           {(() => {
             const pid = seat.playerId
-            const stackFrozen = displayChipsRef.current?.[pid]
             const serverStack = player?.chips ?? seat.chips ?? 0
             const committedNow = Number(actionState?.committed?.[pid] ?? committedRef.current?.[pid] ?? (hand && (hand[0]?.showdownCommitted?.[pid] ?? hand[0]?.committed?.[pid])) ?? 0)
-            const isAllInFlow = anyAllIn || (hand && hand[0]?.allInLocked && hand[0]?.bettingClosed) || street === 'showdown'
-            const stackValue = Number.isFinite(stackFrozen)
-              ? Number(stackFrozen)
-              : (isAllInFlow ? Math.max(0, serverStack - committedNow) : serverStack)
+            const isAllInFlow = inRevealUIRef.current || anyAllIn || (hand && hand[0]?.allInLocked && hand[0]?.bettingClosed) || street === 'showdown'
+            const useFrozen = isAllInFlow && Number.isFinite(displayChipsRef.current?.[pid])
+            const stackValue = useFrozen ? Number(displayChipsRef.current?.[pid]) : (isAllInFlow ? Math.max(0, serverStack - committedNow) : serverStack)
             const c = Math.min(6, stackValue > 2000 ? 6 : stackValue > 1000 ? 5 : stackValue > 500 ? 4 : 3)
             const cx = 32, cy = 18
             return Array.from({ length: c }).map((_, i) => {
@@ -1124,7 +1124,6 @@ const [showEmoji, setShowEmoji] = useState(false)
                   ))}
                 </div>
               )}
-              <div className={`ws-indicator ${wsStatus}`}>{wsStatus}</div>
               {/* Community + HUD center */}
               <div className="hud" style={{ pointerEvents:'none', width:'100%', height:'100%' }}>
                 <div className="center-stack">

@@ -28,6 +28,7 @@ export default function HULobby({ wallet, onMatch }: { wallet: string, onMatch: 
         // no-op
       }
     })
+    try { sessionStorage.setItem('pg_wallet', wallet) } catch {}
     // Initial und periodisch Queue-Status laden
     const poll = async () => {
       try {
