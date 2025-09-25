@@ -583,13 +583,9 @@ const [showEmoji, setShowEmoji] = useState(false)
           else if (revealedSoFar === 5) delay = anyAllIn ? 1400 : 580 // river
           setTimeout(step, delay)
         } else {
-          // full reveal reached; snapshot committed for safety
-          const st0 = hand && hand[0]
-          if (st0 && Array.isArray(st0.players)) {
-            const nextCommitted: Record<string, number> = { ...committedRef.current }
-            st0.players.forEach((p:any)=> { nextCommitted[p.playerId] = st0.showdownCommitted?.[p.playerId] ?? committedRef.current[p.playerId] ?? 0 })
-            committedRef.current = nextCommitted
-          }
+          // full reveal reached; set overlay cue and schedule hold before server jump
+          try { playSound('overlay', () => playOverlayCue()) } catch {}
+          overlayShowAtMsRef.current = Date.now() + 1000
         }
       }
       const extra = nextRevealHoldMsRef.current; nextRevealHoldMsRef.current = 0

@@ -695,7 +695,9 @@ setInterval(() => {
           // Start hold window. Use shorter hold for fold-ends (no showdown reveal),
           // longer hold only when real showdown info is present.
           const hasShowdownReveal = Array.isArray(pub.showdownInfo) && pub.showdownInfo.length > 0;
-          const baseHoldMs = hasShowdownReveal ? 6000 : 600;
+          // Client Reveal-Flow (All-In): Flop/Turn/River pacing + trace dauert ~6.5s
+          // Halte deshalb Showdown etwas länger, damit der Client fertig ist
+          const baseHoldMs = hasShowdownReveal ? 7500 : 600;
           postShowdownHoldUntilMs.set(tableId, now + baseHoldMs);
           return; // keep broadcasting current showdown state
         }
