@@ -77,6 +77,9 @@ const [showEmoji, setShowEmoji] = useState(false)
   const tableSnapshotRef = useRef<any|null>(null)
   // Trigger re-render when profile cache updates (to show avatars/initials)
   const [profileEpoch, setProfileEpoch] = useState<number>(0)
+  // Track match boundaries (tableId change)
+  const prevTableIdRef = useRef<string | null>(null)
+  const newMatchRef = useRef<boolean>(false)
   // simple deterministic pseudo random based on hand number
   const seededRand = (seed:number, salt:number=1) => {
     const x = Math.sin(seed * 9301 + salt * 49297) * 233280
@@ -305,6 +308,15 @@ const [showEmoji, setShowEmoji] = useState(false)
     if (postHoldUntilMsRef.current > Date.now() && tableSnapshotRef.current) return tableSnapshotRef.current
     return null
   }, [hand, wallet, tableId])
+  // Detect new match (tableId change)
+  useEffect(()=>{
+    const currId = myTable?.tableId ?? null
+    const prev = prevTableIdRef.current
+    if (currId && currId !== prev) {
+      newMatchRef.current = true
+    }
+    prevTableIdRef.current = currId
+  }, [myTable?.tableId])
   const communityCards = useMemo(() => (myTable?.community) ?? [], [myTable])
   const pot = useMemo(() => (myTable?.pot) ?? 0, [myTable])
   const street = useMemo(() => (myTable?.street) ?? null, [myTable])
@@ -483,7 +495,9 @@ const [showEmoji, setShowEmoji] = useState(false)
       try {
         const render = renderTables[0]
         const amSeated = !!(render && Array.isArray((render as any).seats) && (render as any).seats.some((p:any)=> p?.playerId === wallet))
-        if (amSeated) { resumeAudio(); playShuffle() }
+        const isNewMatch = !!newMatchRef.current
+        if (amSeated && isNewMatch) { resumeAudio(); playShuffle() }
+        newMatchRef.current = false
       } catch {}
       // Center table in viewport at match start
       try {
@@ -686,7 +700,8 @@ const [showEmoji, setShowEmoji] = useState(false)
     const isNewHand = (street === 'preflop' && communityCards.length === 0)
     if (!isNewHand) return
     // start only when handNumber changes
-    setDealCountdown(3)
+    // After a fold mid‑match we want instant next hand; only show countdown for brand‑new match
+    setDealCountdown(newMatchRef.current ? 3 : 0)
     // Reset Action‑State/Timers sofort beim neuen Deal
     try { prevActionSig.current = ''; prevActionRef.current = null; setActionState(null) } catch {}
     const id = setInterval(() => {
