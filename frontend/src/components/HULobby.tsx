@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { connectWS, huStatus, huJoin, huLeave, huLeaderboard, huBotJoin, huBotStatus, handHistory, getProfile, huElo } from '../api'
+import { connectWS, huStatus, huJoin, huLeave, huLeaderboard, huBotJoin, huBotStatus, handHistory, getProfile, huElo, huSessionStats } from '../api'
 import Modal from './Modal'
 
 export default function HULobby({ wallet, onMatch }: { wallet: string, onMatch: (tableId:string)=>void }){
@@ -16,6 +16,8 @@ export default function HULobby({ wallet, onMatch }: { wallet: string, onMatch: 
   const [eloMap, setEloMap] = useState<Record<string, number>>({})
   const [rowsHistory, setRowsHistory] = useState<any[]>([])
   const [online, setOnline] = useState<number>(0)
+  const [sessionTop, setSessionTop] = useState<any|null>(null)
+  const [sessionBB, setSessionBB] = useState<any|null>(null)
 
   useEffect(()=>{
     const ws = connectWS((m:any)=>{
@@ -45,6 +47,11 @@ export default function HULobby({ wallet, onMatch }: { wallet: string, onMatch: 
         const map: Record<string, number> = {}
         ;(Array.isArray(e) ? e : []).forEach((r:any)=>{ if (r && typeof r.playerId==='string' && typeof r.rating==='number') map[r.playerId]=r.rating })
         setEloMap(map)
+      } catch {}
+      try {
+        const st = await huSessionStats();
+        setSessionTop(st?.topHand || null)
+        setSessionBB(st?.badBeat || null)
       } catch {}
       // If we just redirected from a finished table, auto-open leaderboard modal once
       try {
@@ -198,6 +205,34 @@ export default function HULobby({ wallet, onMatch }: { wallet: string, onMatch: 
             )
           })}
         </ul>
+      </div>
+
+      <div style={{ marginTop:12, textAlign:'left', display:'grid', gridTemplateColumns:'1fr 1fr', gap:12 }}>
+        <div style={{ border:'1px solid rgba(255,213,79,0.25)', borderRadius:8, padding:8 }}>
+          <b>Top Hand</b>
+          {sessionTop ? (
+            <div style={{ marginTop:6 }}>
+              <div><span className="pg-pill">{sessionTop.category}</span></div>
+              <div style={{ fontSize:12, opacity:0.9 }}>by {sessionTop.displayName} · {sessionTop.tableId} · h{sessionTop.handNumber}</div>
+            </div>
+          ) : (
+            <div style={{ marginTop:6, opacity:0.7 }}>—</div>
+          )}
+        </div>
+        <div style={{ border:'1px solid rgba(255,213,79,0.25)', borderRadius:8, padding:8 }}>
+          <b>Bad Beat</b>
+          {sessionBB ? (
+            <div style={{ marginTop:6 }}>
+              <div style={{ fontSize:13 }}>
+                <span className="pg-pill" style={{ marginRight:6 }}>{sessionBB.category}</span>
+                vs <span className="pg-pill" style={{ marginLeft:6 }}>{sessionBB.winnerCategory}</span>
+              </div>
+              <div style={{ fontSize:12, opacity:0.9 }}>lost by {sessionBB.displayName} vs {sessionBB.winnerDisplayName} · Pot {sessionBB.pot}</div>
+            </div>
+          ) : (
+            <div style={{ marginTop:6, opacity:0.7 }}>—</div>
+          )}
+        </div>
       </div>
 
       <Modal open={openModal==='leader'} title="Leaderboard" onClose={()=> setOpenModal(null)}>

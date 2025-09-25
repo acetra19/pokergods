@@ -220,6 +220,12 @@ export async function huElo() {
   return res.json()
 }
 
+export async function huSessionStats() {
+  const res = await fetch(`${BACKEND}/hu/sessionStats`)
+  if (!res.ok) throw new Error('failed to load session stats')
+  return res.json()
+}
+
 // Solana Eligibility (SPL-Token Balance)
 export async function solEligibility(address: string, mint?: string, threshold?: number) {
   const params = new URLSearchParams()

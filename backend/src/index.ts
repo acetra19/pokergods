@@ -145,7 +145,13 @@ app.get("/seating", (_req, res) => {
 });
 
 app.get("/level", (_req, res) => {
-  res.json(demoTournament.getCurrentLevel());
+  try {
+    const v: any = demoTournament.getPublicView();
+    const lvl0 = (v && Array.isArray(v.blindLevels) && v.blindLevels[0]) ? v.blindLevels[0] : demoTournament.getCurrentLevel();
+    res.json(lvl0);
+  } catch {
+    res.json(demoTournament.getCurrentLevel());
+  }
 });
 
 app.post("/admin/reset", adminAuth, (_req, res) => {
@@ -227,6 +233,11 @@ app.get("/hand/history", (req, res) => {
   merged.sort((a, b) => b.ts - a.ts);
   res.json(merged.slice(0, 100));
 });
+
+// Session stats endpoint
+app.get('/hu/sessionStats', (_req, res) => {
+  res.json({ ok:true, topHand: sessionStats.topHand, badBeat: sessionStats.badBeat })
+})
 
 app.post("/hand/action", express.json(), (req, res) => {
   const { tableId, playerId, type, amount } = req.body ?? {};
@@ -501,6 +512,17 @@ setInterval(() => {
 
 // In-memory hand history store (recent)
 const handHistoryByTable = new Map<string, Array<any>>();
+// Session stats: Top Hand and Bad Beat (reset on server restart)
+type TopHandEntry = { playerId: string; displayName: string; category: string; tableId: string; handNumber: number; ts: number } | null
+type BadBeatEntry = { loserId: string; displayName: string; category: string; winnerId: string; winnerDisplayName: string; winnerCategory: string; tableId: string; handNumber: number; pot: number; ts: number } | null
+const sessionStats: { topHand: TopHandEntry; badBeat: BadBeatEntry } = { topHand: null, badBeat: null };
+const CATEGORY_ORDER = [
+  'High Card','Pair','Two Pair','Three of a Kind','Straight','Flush','Full House','Four of a Kind','Straight Flush','Royal Flush'
+];
+const catRank = (c: string) => {
+  const i = CATEGORY_ORDER.findIndex(x=> x.toLowerCase() === String(c||'').toLowerCase());
+  return i >= 0 ? i : -1;
+}
 
 // Broadcast current hand states to clients
 const broadcastHandStates = () => {
@@ -730,6 +752,38 @@ setInterval(() => {
             while (list.length > 50) list.shift();
             handHistoryByTable.set(tableId, list);
           } catch {}
+        // Update session stats (after history append)
+        try {
+          const sInfo: any[] = Array.isArray(pub.showdownInfo) ? pub.showdownInfo : []
+          if (sInfo.length) {
+            // Top Hand
+            const best = sInfo.slice().sort((a,b)=> catRank(b.category) - catRank(a.category))[0]
+            if (best) {
+              const th = sessionStats.topHand
+              if (!th || catRank(best.category) > catRank(th.category)) {
+                sessionStats.topHand = { playerId: best.playerId, displayName: resolveDisplayName(best.playerId), category: best.category, tableId, handNumber: pub.handNumber, ts: Date.now() }
+                broadcast({ type:'tournament', payload:{ event:'session_stats', topHand: sessionStats.topHand, badBeat: sessionStats.badBeat } })
+              }
+            }
+            // Bad Beat: strongest losing hand (>= Full House)
+            const winnerIds = new Set((pub.lastWinners||[]).map((w:any)=> w.playerId))
+            const losers = sInfo.filter(s=> !winnerIds.has(s.playerId))
+            if (losers.length) {
+              const worst = losers.slice().sort((a,b)=> catRank(b.category) - catRank(a.category))[0]
+              if (worst && catRank(worst.category) >= catRank('Full House')) {
+                const win = (pub.lastWinners||[])[0]
+                const winCat = (sInfo.find(s=> s.playerId===win?.playerId)?.category) || ''
+                const bb = { loserId: worst.playerId, displayName: resolveDisplayName(worst.playerId), category: worst.category, winnerId: win?.playerId||'', winnerDisplayName: resolveDisplayName(win?.playerId||''), winnerCategory: winCat, tableId, handNumber: pub.handNumber, pot: pub.pot, ts: Date.now() }
+                const prev = sessionStats.badBeat
+                const better = !prev || catRank(worst.category) > catRank(prev.category) || (catRank(worst.category)===catRank(prev.category) && ((pub.pot||0) > (prev.pot||0)))
+                if (better) {
+                  sessionStats.badBeat = bb
+                  broadcast({ type:'tournament', payload:{ event:'session_stats', topHand: sessionStats.topHand, badBeat: sessionStats.badBeat } })
+                }
+              }
+            }
+          }
+        } catch {}
         const players = pub.players.map((p) => p.playerId);
         const busted = pub.players.filter((p) => p.busted || p.chips <= 0).map((p) => p.playerId);
         if (busted.length > 0) {
