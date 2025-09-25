@@ -15,6 +15,7 @@ export default function HULobby({ wallet, onMatch }: { wallet: string, onMatch: 
   const [rowsLeader, setRowsLeader] = useState<any[]>([])
   const [eloMap, setEloMap] = useState<Record<string, number>>({})
   const [rowsHistory, setRowsHistory] = useState<any[]>([])
+  const [online, setOnline] = useState<number>(0)
 
   useEffect(()=>{
     const ws = connectWS((m:any)=>{
@@ -32,6 +33,7 @@ export default function HULobby({ wallet, onMatch }: { wallet: string, onMatch: 
       try {
         const s = await huStatus(wallet)
         setQueueSize(s.queueSize ?? 0)
+        setOnline(s.online ?? 0)
         if (s.matchTableId) {
           onMatch(s.matchTableId)
         }
@@ -96,7 +98,8 @@ export default function HULobby({ wallet, onMatch }: { wallet: string, onMatch: 
               <option value="fast">Fast</option>
             </select>
           </div>
-          <div style={{ marginLeft:'auto', display:'flex', gap:8 }}>
+          <div style={{ marginLeft:'auto', display:'flex', gap:8, alignItems:'center' }}>
+            <span className="badge" style={{ padding:'4px 10px', borderRadius:999, background:'#1a0f2b', color:'#cbd5ff', fontSize:12, border:'1px solid rgba(140,140,255,0.25)' }}>Online: {online}</span>
             <button className="btn btn-primary" onClick={async ()=>{
               if (!wallet.trim()) { setHint('Please enter a wallet name first.'); return }
           try {

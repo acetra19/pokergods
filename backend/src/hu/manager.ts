@@ -3,27 +3,35 @@ import type { TableState } from "../tournament/types.js";
 export interface HUStatus {
   queueSize: number;
   matchTableId?: string | undefined;
+  online?: number;
 }
 
 export class HUManager {
   private queue: string[] = [];
   private walletToTable: Map<string, string> = new Map();
   private nextId = 1;
+  private onlineSet: Set<string> = new Set();
+  public maxOnline: number = Number(process.env.HU_MAX_ONLINE || 128);
 
   public join(wallet: string): HUStatus {
+    this.onlineSet.add(wallet);
     if (this.walletToTable.has(wallet)) {
-      return { queueSize: this.queue.length, matchTableId: this.walletToTable.get(wallet) };
+      return { queueSize: this.queue.length, matchTableId: this.walletToTable.get(wallet), online: this.onlineSet.size };
+    }
+    if (this.onlineSet.size > this.maxOnline) {
+      return { queueSize: this.queue.length, matchTableId: undefined, online: this.onlineSet.size };
     }
     if (!this.queue.includes(wallet)) {
       this.queue.push(wallet);
     }
-    return { queueSize: this.queue.length };
+    return { queueSize: this.queue.length, online: this.onlineSet.size };
   }
 
   public leave(wallet: string): HUStatus {
     this.queue = this.queue.filter((w) => w !== wallet);
     const tableId = this.walletToTable.get(wallet);
-    return { queueSize: this.queue.length, matchTableId: tableId };
+    this.onlineSet.delete(wallet);
+    return { queueSize: this.queue.length, matchTableId: tableId, online: this.onlineSet.size };
   }
 
   public popMatch(): { table: TableState } | null {
@@ -65,15 +73,16 @@ export class HUManager {
 
   public status(wallet: string | undefined): HUStatus {
     const tableId = wallet ? this.walletToTable.get(wallet) : undefined;
-    return { queueSize: this.queue.length, matchTableId: tableId };
+    return { queueSize: this.queue.length, matchTableId: tableId, online: this.onlineSet.size };
   }
 
   public unmap(wallet: string): void {
     this.walletToTable.delete(wallet);
+    this.onlineSet.delete(wallet);
   }
 
   public unmapMany(wallets: string[]): void {
-    wallets.forEach((w) => this.walletToTable.delete(w));
+    wallets.forEach((w) => { this.walletToTable.delete(w); this.onlineSet.delete(w); });
   }
 }
 
