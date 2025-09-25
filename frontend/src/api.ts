@@ -226,6 +226,17 @@ export async function huSessionStats() {
   return res.json()
 }
 
+export async function huLeague() {
+  const res = await fetch(`${BACKEND}/hu/league`)
+  if (!res.ok) throw new Error('failed to load league')
+  return res.json()
+}
+export async function huLeagueVs(user: string) {
+  const res = await fetch(`${BACKEND}/hu/league/vs?user=${encodeURIComponent(user)}`)
+  if (!res.ok) throw new Error('failed to load head-to-head')
+  return res.json()
+}
+
 // Solana Eligibility (SPL-Token Balance)
 export async function solEligibility(address: string, mint?: string, threshold?: number) {
   const params = new URLSearchParams()

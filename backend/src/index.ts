@@ -222,6 +222,9 @@ const hu = new HUManager();
 const huLeaderboard = new Map<string, { wins: number; matches: number }>();
 // Simple in-memory ELO for HU (with persistence)
 const huElo = new Map<string, number>();
+// League table and head-to-head stats (in-memory; reset on restart)
+const huLeague = new Map<string, { wins:number; losses:number; matches:number; points:number }>();
+const huVs = new Map<string, Map<string, { wins:number; losses:number; matches:number }>>();
 const getElo = (pid: string) => huElo.get(pid) ?? 1500;
 const setElo = (pid: string, r: number) => { huElo.set(pid, Math.round(r)); };
 function updateElo(winnerId: string, loserId: string) {
@@ -410,6 +413,21 @@ app.get("/hu/elo", (_req, res) => {
   rows.sort((a, b) => b.rating - a.rating);
   res.json(rows.slice(0, 50));
 });
+
+// League endpoints
+app.get('/hu/league', (_req, res) => {
+  const rows = Array.from(huLeague.entries()).map(([playerId, s]) => ({ playerId, displayName: resolveDisplayName(playerId), ...s }))
+  rows.sort((a,b)=> b.points - a.points || b.wins - a.wins || a.losses - b.losses)
+  res.json(rows)
+})
+app.get('/hu/league/vs', (req, res) => {
+  const u = String(req.query.user||'')
+  const row = huVs.get(u)
+  if (!row) { res.json([]); return }
+  const out = Array.from(row.entries()).map(([opp, s])=> ({ opponent: resolveDisplayName(opp), opponentId: opp, ...s }))
+  out.sort((a,b)=> b.wins - a.wins || a.losses - b.losses)
+  res.json(out)
+})
 
 // --- Solana Eligibility (SPL-Token balance) ---
 const SOL_RPC_URL = process.env.SOLANA_RPC_URL || "https://api.mainnet-beta.solana.com";
@@ -846,6 +864,27 @@ setInterval(() => {
           const winners = (pub.lastWinners ?? []).map((w) => w.playerId);
           toRequeue.push({ tableId, players, winners });
           diag('match_end', { tableId, handNumber: pub.handNumber, winners });
+          // Update league and head-to-head
+          try {
+            const losers = players.filter(p=> !winners.includes(p))
+            winners.forEach(w=>{
+              const s = huLeague.get(w) || { wins:0, losses:0, matches:0, points:0 }
+              s.wins += 1; s.matches += 1; s.points += 3; huLeague.set(w, s)
+            })
+            losers.forEach(l=>{
+              const s = huLeague.get(l) || { wins:0, losses:0, matches:0, points:0 }
+              s.losses += 1; s.matches += 1; huLeague.set(l, s)
+            })
+            if (players.length===2) {
+              const a = players[0], b = players[1]
+              const aMap = huVs.get(a) || new Map(); const bMap = huVs.get(b) || new Map();
+              const aVs = aMap.get(b) || { wins:0, losses:0, matches:0 }
+              const bVs = bMap.get(a) || { wins:0, losses:0, matches:0 }
+              aVs.matches += 1; bVs.matches += 1
+              if (winners.includes(a)) { aVs.wins += 1; bVs.losses += 1 } else if (winners.includes(b)) { bVs.wins += 1; aVs.losses += 1 }
+              aMap.set(b, aVs); bMap.set(a, bVs); huVs.set(a, aMap); huVs.set(b, bMap)
+            }
+          } catch {}
         } else {
           // same match continues: start next hand
           const serverSeed = randomBytes(32).toString("hex");

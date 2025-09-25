@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { connectWS, huStatus, huJoin, huLeave, huLeaderboard, huBotJoin, huBotStatus, handHistory, getProfile, huElo, huSessionStats } from '../api'
+import { connectWS, huStatus, huJoin, huLeave, huLeaderboard, huBotJoin, huBotStatus, handHistory, getProfile, huElo, huSessionStats, huLeague, huLeagueVs } from '../api'
 import Modal from './Modal'
 
 export default function HULobby({ wallet, onMatch }: { wallet: string, onMatch: (tableId:string)=>void }){
@@ -11,7 +11,7 @@ export default function HULobby({ wallet, onMatch }: { wallet: string, onMatch: 
   const [displayName, setDisplayName] = useState<string>('')
   const [stakes, setStakes] = useState<'50/100'|'100/200'|'200/400'>('50/100')
   const [speed, setSpeed] = useState<'normal'|'fast'>('normal')
-  const [openModal, setOpenModal] = useState<'leader'|'history'|null>(null)
+  const [openModal, setOpenModal] = useState<'leader'|'history'|'league'|null>(null)
   const [rowsLeader, setRowsLeader] = useState<any[]>([])
   const [eloMap, setEloMap] = useState<Record<string, number>>({})
   const [rowsHistory, setRowsHistory] = useState<any[]>([])
@@ -131,6 +131,10 @@ export default function HULobby({ wallet, onMatch }: { wallet: string, onMatch: 
               try { setRowsHistory(await handHistory()) } catch { setRowsHistory([]) }
               setOpenModal('history')
             }}>History</button>
+            <button className="btn" onClick={async ()=>{
+              try { const r = await huLeague(); setRowsLeader(r||[]) } catch { setRowsLeader([]) }
+              setOpenModal('league')
+            }}>League</button>
           </div>
         </div>
       </div>
@@ -252,6 +256,32 @@ export default function HULobby({ wallet, onMatch }: { wallet: string, onMatch: 
                 </tr>
               )
             })}
+          </tbody>
+        </table>
+      </Modal>
+
+      <Modal open={openModal==='league'} title="League Table" onClose={()=> setOpenModal(null)}>
+        <table className="pg-table">
+          <thead>
+            <tr><th>#</th><th>Player</th><th>W</th><th>L</th><th>M</th><th>Pts</th><th>vs</th></tr>
+          </thead>
+          <tbody>
+            {rowsLeader.map((r:any, idx:number)=> (
+              <tr key={r.playerId}>
+                <td>{idx+1}</td>
+                <td>{r.displayName||r.playerId}</td>
+                <td>{r.wins}</td>
+                <td>{r.losses}</td>
+                <td>{r.matches}</td>
+                <td><span className="pg-pill">{r.points}</span></td>
+                <td><button className="btn" onClick={async()=>{
+                  try {
+                    const vs = await huLeagueVs(r.playerId)
+                    alert(vs.map((v:any)=> `${v.opponent}: ${v.wins}-${v.losses} (${v.matches})`).join('\n') || 'No data')
+                  } catch {}
+                }}>View</button></td>
+              </tr>
+            ))}
           </tbody>
         </table>
       </Modal>
