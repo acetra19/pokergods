@@ -26,6 +26,16 @@ app.get("/health", (_req, res) => {
   res.json({ ok: true });
 });
 
+// --- Diagnostics (ring buffer) ---
+type Diag = { ts:number; tag:string; data:any }
+const DIAG_MAX = 500
+const diagBuf: Diag[] = []
+function diag(tag: string, data: any) {
+  try { diagBuf.push({ ts: Date.now(), tag, data }); while (diagBuf.length > DIAG_MAX) diagBuf.shift() } catch {}
+}
+app.get('/diag/logs', (_req, res)=> { res.json({ ok:true, logs: diagBuf }) })
+app.post('/diag/log', express.json(), (req, res)=> { diag(String(req.body?.tag||'client'), req.body?.data||{}); res.json({ ok:true }) })
+
 // --- Admin auth (JWT‑style HMAC token; beta, no external deps) ---
 const ADMIN_USER = process.env.ADMIN_USER || 'admin';
 const ADMIN_PASS = process.env.ADMIN_PASS || 'pokergod69';
@@ -154,6 +164,18 @@ app.get("/level", (_req, res) => {
   }
 });
 
+function getFirstBlindLevel(): { smallBlind: number; bigBlind: number } {
+  try {
+    const v: any = demoTournament.getPublicView();
+    if (v && Array.isArray(v.blindLevels) && v.blindLevels[0]) {
+      const b = v.blindLevels[0];
+      return { smallBlind: Number(b.smallBlind||25), bigBlind: Number(b.bigBlind||50) }
+    }
+  } catch {}
+  const curr = demoTournament.getCurrentLevel();
+  return { smallBlind: curr.smallBlind, bigBlind: curr.bigBlind }
+}
+
 app.post("/admin/reset", adminAuth, (_req, res) => {
   demoTournament.reset(Date.now() + 5 * 60_000);
   res.json({ ok: true });
@@ -185,7 +207,7 @@ function updateElo(winnerId: string, loserId: string) {
 }
 
 app.post("/hand/start", (_req, res) => {
-  const lvl = demoTournament.getCurrentLevel();
+  const lvl = getFirstBlindLevel();
   const seating = demoTournament.getSeating();
   seating.forEach((table) => {
     let eng = tableEngines.get(table.tableId);
@@ -309,7 +331,7 @@ app.post("/hu/bot/join/:wallet", (req, res) => {
   if (st.matchTableId) { res.json(st); return; }
   // Create table with bot and start engine immediately
   const { table } = hu.createBotMatch(wallet, BOT_ID);
-  const lvl = demoTournament.getCurrentLevel();
+  const lvl = getFirstBlindLevel();
   const eng = new GameEngine(table, { sb: lvl.smallBlind, bb: lvl.bigBlind });
   tableEngines.set(table.tableId, eng);
   const serverSeed = randomBytes(32).toString("hex");
@@ -600,7 +622,7 @@ loadProfiles().catch(()=>{})
 function tryStartHuMatch(): boolean {
   const huMatch = hu.popMatch();
   if (!huMatch) return false;
-  const lvl = demoTournament.getCurrentLevel();
+  const lvl = getFirstBlindLevel();
   const eng = new GameEngine(huMatch.table, { sb: lvl.smallBlind, bb: lvl.bigBlind });
   tableEngines.set(huMatch.table.tableId, eng);
   // provably-fair: generate server seed, commit, and pre-install RNG for next shuffle
@@ -676,7 +698,7 @@ setInterval(() => {
   if (AUTO_ADVANCE_ENABLED && view.state === TournamentState.Running) {
     // ensure engines exist for current seating
     if (tableEngines.size === 0) {
-      const lvl = demoTournament.getCurrentLevel();
+      const lvl = getFirstBlindLevel();
       demoTournament.getSeating().forEach((table) => {
         const eng = new GameEngine(table, { sb: lvl.smallBlind, bb: lvl.bigBlind });
         tableEngines.set(table.tableId, eng);
@@ -684,7 +706,7 @@ setInterval(() => {
       });
       broadcastHandStates();
     } else {
-      const lvl = demoTournament.getCurrentLevel();
+      const lvl = getFirstBlindLevel();
       tableEngines.forEach((eng, tableId) => {
         const st = eng.getPublic().street;
         if (st === null) return;
@@ -703,7 +725,7 @@ setInterval(() => {
   }
   // HU tables: if showdown reached, hold briefly before next hand or rematch.
   if (tableEngines.size > 0) {
-    const lvl = demoTournament.getCurrentLevel();
+          const lvl = getFirstBlindLevel();
     const toRequeue: { tableId: string; players: string[]; winners: string[] }[] = [];
     let changed = false;
     tableEngines.forEach((eng, tableId) => {
@@ -721,6 +743,7 @@ setInterval(() => {
           // Halte deshalb Showdown etwas länger, damit der Client fertig ist
           const baseHoldMs = hasShowdownReveal ? 7500 : 600;
           postShowdownHoldUntilMs.set(tableId, now + baseHoldMs);
+          diag('showdown_hold_start', { tableId, handNumber: pub.handNumber, baseHoldMs, hasShowdownReveal });
           return; // keep broadcasting current showdown state
         }
         if (now < holdUntil) {
@@ -728,6 +751,7 @@ setInterval(() => {
         }
         // hold elapsed; proceed and clear
         postShowdownHoldUntilMs.delete(tableId);
+        diag('showdown_hold_end', { tableId, handNumber: pub.handNumber });
         // reveal fairness info for the completed hand (if present)
         try {
           const fair = fairnessByTable.get(tableId);
@@ -765,21 +789,19 @@ setInterval(() => {
                 broadcast({ type:'tournament', payload:{ event:'session_stats', topHand: sessionStats.topHand, badBeat: sessionStats.badBeat } })
               }
             }
-            // Bad Beat: strongest losing hand (>= Full House)
+            // Bad Beat: strongest losing hand (no threshold; always pick the strongest losing hand, tiebreak by larger pot)
             const winnerIds = new Set((pub.lastWinners||[]).map((w:any)=> w.playerId))
             const losers = sInfo.filter(s=> !winnerIds.has(s.playerId))
             if (losers.length) {
               const worst = losers.slice().sort((a,b)=> catRank(b.category) - catRank(a.category))[0]
-              if (worst && catRank(worst.category) >= catRank('Full House')) {
-                const win = (pub.lastWinners||[])[0]
-                const winCat = (sInfo.find(s=> s.playerId===win?.playerId)?.category) || ''
-                const bb = { loserId: worst.playerId, displayName: resolveDisplayName(worst.playerId), category: worst.category, winnerId: win?.playerId||'', winnerDisplayName: resolveDisplayName(win?.playerId||''), winnerCategory: winCat, tableId, handNumber: pub.handNumber, pot: pub.pot, ts: Date.now() }
-                const prev = sessionStats.badBeat
-                const better = !prev || catRank(worst.category) > catRank(prev.category) || (catRank(worst.category)===catRank(prev.category) && ((pub.pot||0) > (prev.pot||0)))
-                if (better) {
-                  sessionStats.badBeat = bb
-                  broadcast({ type:'tournament', payload:{ event:'session_stats', topHand: sessionStats.topHand, badBeat: sessionStats.badBeat } })
-                }
+              const win = (pub.lastWinners||[])[0]
+              const winCat = (sInfo.find(s=> s.playerId===win?.playerId)?.category) || ''
+              const bb = { loserId: worst.playerId, displayName: resolveDisplayName(worst.playerId), category: worst.category, winnerId: win?.playerId||'', winnerDisplayName: resolveDisplayName(win?.playerId||''), winnerCategory: winCat, tableId, handNumber: pub.handNumber, pot: pub.pot, ts: Date.now() }
+              const prev = sessionStats.badBeat
+              const better = !prev || catRank(worst.category) > catRank(prev.category) || (catRank(worst.category)===catRank(prev.category) && ((pub.pot||0) > (prev.pot||0)))
+              if (better) {
+                sessionStats.badBeat = bb
+                broadcast({ type:'tournament', payload:{ event:'session_stats', topHand: sessionStats.topHand, badBeat: sessionStats.badBeat } })
               }
             }
           }
@@ -789,6 +811,7 @@ setInterval(() => {
         if (busted.length > 0) {
           const winners = (pub.lastWinners ?? []).map((w) => w.playerId);
           toRequeue.push({ tableId, players, winners });
+          diag('match_end', { tableId, handNumber: pub.handNumber, winners });
         } else {
           // same match continues: start next hand
           const serverSeed = randomBytes(32).toString("hex");
@@ -796,6 +819,7 @@ setInterval(() => {
           fairnessByTable.set(tableId, { commit, serverSeed });
           eng.setDeckRng(seedToRng(serverSeed));
           eng.nextHand({ sb: lvl.smallBlind, bb: lvl.bigBlind });
+          diag('next_hand', { tableId });
           changed = true;
         }
       }
