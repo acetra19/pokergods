@@ -46,6 +46,11 @@ const [showEmoji, setShowEmoji] = useState(false)
   const [longPress, setLongPress] = useState<{active:boolean; start:number}>({ active:false, start:0 })
   // Freeze the bet/raise button label right after submit to avoid flicker back to default
   const [pendingBtnLabel, setPendingBtnLabel] = useState<string | null>(null)
+
+  // Release pending label when the actor changes (server accepted action)
+  useEffect(() => {
+    setPendingBtnLabel(null)
+  }, [actionState?.actorPlayerId])
   const longPressTimer = useRef<number | null>(null)
   const prevHandSig = useRef<string>('')
   const prevActionSig = useRef<string>('')
@@ -1397,13 +1402,12 @@ const [showEmoji, setShowEmoji] = useState(false)
                     let v = Number(input.value||0);
                     if (v < minTo) v = minTo;
                     try {
-                      setPendingBtnLabel(isBet ? `Bet ${v}` : `Raise to ${v}`)
+                      const label = isBet ? `Bet ${v}` : `Raise to ${v}`
+                      setPendingBtnLabel(label)
                       await handAction({ tableId: renderTables[0].tableId, playerId: actor, type: isBet?'bet':'raise', amount: v });
                       input.value='';
                       setSizingAmt(null)
-                    } catch(err:any){ alert(err?.message||'Action error') } finally {
-                      setTimeout(()=> setPendingBtnLabel(null), 300)
-                    }
+                    } catch(err:any){ alert(err?.message||'Action error'); setPendingBtnLabel(null) }
                   }}>
                       <div className="sizing-controls" style={{ background:'#fff' }}>
                       <input name="amt" type="number" min={minTo} max={maxTo} placeholder={String(minTo)} disabled={!canAct}
