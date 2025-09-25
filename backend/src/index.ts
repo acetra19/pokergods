@@ -165,15 +165,15 @@ app.get("/level", (_req, res) => {
 });
 
 function getFirstBlindLevel(): { smallBlind: number; bigBlind: number } {
-  try {
-    const v: any = demoTournament.getPublicView();
-    if (v && Array.isArray(v.blindLevels) && v.blindLevels[0]) {
-      const b = v.blindLevels[0];
-      return { smallBlind: Number(b.smallBlind||25), bigBlind: Number(b.bigBlind||50) }
-    }
-  } catch {}
-  const curr = demoTournament.getCurrentLevel();
-  return { smallBlind: curr.smallBlind, bigBlind: curr.bigBlind }
+  // Prefer explicit env overrides, then fallback to known defaults (25/50)
+  const envSB = Number(process.env.HU_START_SB || '')
+  const envBB = Number(process.env.HU_START_BB || '')
+  if (Number.isFinite(envSB) && Number.isFinite(envBB) && envSB>0 && envBB>0) {
+    return { smallBlind: envSB, bigBlind: envBB }
+  }
+  // If the tournament manager doesn't expose blindLevels in public view,
+  // return Level 1 defaults (matching the configured first entry)
+  return { smallBlind: 25, bigBlind: 50 }
 }
 
 app.post("/admin/reset", adminAuth, (_req, res) => {
