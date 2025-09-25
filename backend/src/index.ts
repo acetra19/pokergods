@@ -654,8 +654,11 @@ setInterval(() => {
         const now = Date.now();
         const holdUntil = postShowdownHoldUntilMs.get(tableId) ?? 0;
         if (!holdUntil) {
-          // start hold window (extended to allow client reveal pacing)
-          postShowdownHoldUntilMs.set(tableId, now + 6000);
+          // Start hold window. Use shorter hold for fold-ends (no showdown reveal),
+          // longer hold only when real showdown info is present.
+          const hasShowdownReveal = Array.isArray(pub.showdownInfo) && pub.showdownInfo.length > 0;
+          const baseHoldMs = hasShowdownReveal ? 6000 : 600;
+          postShowdownHoldUntilMs.set(tableId, now + baseHoldMs);
           return; // keep broadcasting current showdown state
         }
         if (now < holdUntil) {
