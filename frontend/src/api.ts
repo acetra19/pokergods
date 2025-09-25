@@ -215,8 +215,11 @@ export async function solEligibility(address: string, mint?: string, threshold?:
   if (typeof threshold === 'number') params.set('threshold', String(threshold))
   const url = `${BACKEND}/sol/eligibility?${params.toString()}`
   const res = await fetch(url)
-  if (!res.ok) throw new Error('failed to check eligibility')
-  return res.json()
+  const txt = await res.text()
+  if (!res.ok) {
+    try { const j = JSON.parse(txt); throw new Error(j?.error || 'failed to check eligibility') } catch { throw new Error(txt || 'failed to check eligibility') }
+  }
+  try { return JSON.parse(txt) } catch { return { ok:true, eligible:false, balance:0, threshold:0, decimals:0 } }
 }
 
 // Profiles

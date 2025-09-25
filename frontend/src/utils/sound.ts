@@ -6,6 +6,14 @@ let profile: SoundProfile = (() => {
   try { return (localStorage.getItem('soundProfile') as SoundProfile) || 'subtle' } catch { return 'subtle' }
 })()
 
+// Import shuffle samples so Vite bundles them for production
+// (absolute /src paths funktionieren im Build nicht zuverlässig)
+import shuffle1 from '../sounds/shuffle1.mp3'
+import shuffle2 from '../sounds/shuffle2.mp3'
+import shuffle3 from '../sounds/shuffle3.mp3'
+import shuffle4 from '../sounds/shuffle4.mp3'
+import shuffle5 from '../sounds/shuffle5.mp3'
+
 function getCtx(): AudioContext {
   if (!audioCtx) {
     const Ctx = (window.AudioContext || (window as any).webkitAudioContext);
@@ -63,19 +71,14 @@ export function playDeal() {
   }
 }
 
-// Shuffle samples rotation
-const shuffleSamples = [
-  new Audio('/src/sounds/shuffle1.mp3'),
-  new Audio('/src/sounds/shuffle2.mp3'),
-  new Audio('/src/sounds/shuffle3.mp3'),
-  new Audio('/src/sounds/shuffle4.mp3'),
-  new Audio('/src/sounds/shuffle5.mp3'),
-];
+// Shuffle samples rotation (bundled asset URLs)
+const shuffleSounds = [shuffle1, shuffle2, shuffle3, shuffle4, shuffle5];
 function randIndex(max: number): number { try { return Math.floor(Math.random() * max) } catch { return 0 } }
 export function playShuffle() {
   try {
     if (muted) return;
-    const a = shuffleSamples[randIndex(shuffleSamples.length)];
+    const url = shuffleSounds[randIndex(shuffleSounds.length)];
+    const a = new Audio(url);
     a.volume = 0.3;
     a.currentTime = 0;
     a.play().catch(()=>{});

@@ -23,9 +23,9 @@ export default function AuthPanel({ onLogin }: { onLogin: (p: { username: string
       setElig({ eligible: !!r.eligible, balance: Number(r.balance||0), threshold: Number(r.threshold||0), decimals: Number(r.decimals||0) })
       if (!r.eligible) setHelpOpen(true)
       // check wallet binding status
-      try { const s = await authWalletStatus(wallet); setWalletTaken({ taken: !!s.taken, username: s.username || null }) } catch { setWalletTaken(null) }
+      try { const s = await authWalletStatus(wallet); setWalletTaken({ taken: !!s.taken, username: s.username || null }) } catch(e:any) { setWalletTaken(null) }
     } catch (e:any) {
-      setHint('Scan failed')
+      setHint(e?.message || 'Scan failed')
     } finally { setLoading(false) }
   }
 
