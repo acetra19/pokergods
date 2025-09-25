@@ -18,6 +18,7 @@ export default function MatchSummary() {
   }
   const offset = 260 // push content and logo further down
   const cards = Array.isArray(data?.showdownInfo) ? data.showdownInfo : []
+  const holesByPlayer = (data?.holesByPlayer || {}) as Record<string, any[]|null>
   const community = Array.isArray(data?.community) ? data.community : []
   const label = (c:any) => (c ? `${c.rank}${c.suit}` : '')
   return (
@@ -44,8 +45,17 @@ export default function MatchSummary() {
               {cards.map((s:any)=> (
                 <div key={s.playerId} style={{ display:'flex', alignItems:'center', gap:6 }}>
                   <span style={{ fontSize:12, opacity:0.85 }}>{nameOf(s.playerId)}</span>
-                  <span className={`card-sm suit-${(s.hole?.[0]?.suit||'x')}`}>{label(s.hole?.[0])}</span>
-                  <span className={`card-sm suit-${(s.hole?.[1]?.suit||'x')}`}>{label(s.hole?.[1])}</span>
+                  {(() => {
+                    const hx = holesByPlayer[s.playerId] || s.hole || []
+                    const h0 = hx?.[0] || null
+                    const h1 = hx?.[1] || null
+                    return (
+                      <>
+                        <span className={`card-sm suit-${(h0?.suit||'x')}`}>{label(h0)}</span>
+                        <span className={`card-sm suit-${(h1?.suit||'x')}`}>{label(h1)}</span>
+                      </>
+                    )
+                  })()}
                 </div>
               ))}
             </div>

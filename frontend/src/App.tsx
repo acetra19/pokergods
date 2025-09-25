@@ -69,10 +69,8 @@ function App() {
     try { window.location.hash = `/${r}` } catch { setView(route) }
   }
 
-  const [skin, setSkin] = useState<'pokergods'|'deep'>(()=>{ try { return (localStorage.getItem('pg_skin') as any) || 'pokergods' } catch { return 'pokergods' } })
-  useEffect(()=>{ try { localStorage.setItem('pg_skin', skin) } catch {} }, [skin])
   return (
-    <div className={`card theme-${skin}`} style={{ maxWidth: 900, margin: '2rem auto' }}>
+    <div className={`card theme-pokergods`} style={{ maxWidth: 900, margin: '2rem auto' }}>
       <div className="brand-header">
         <div className="brand-title">POKERGODS</div>
         <div className="brand-sub">Heads‑Up Poker</div>
@@ -162,9 +160,6 @@ function App() {
       )}
       {loggedIn && (
         <button className="admin-fab" onClick={()=> go('admin')}>Admin</button>
-      )}
-      {loggedIn && (
-        <button className="theme-toggle" onClick={()=> setSkin(skin==='pokergods'?'deep':'pokergods')}>{skin==='pokergods'?'Deep Skin':'Pokergods Skin'}</button>
       )}
     </div>
   )

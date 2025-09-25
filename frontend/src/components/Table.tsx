@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState, memo, useCallback, type CSSProperties } from 'react'
 import pgLogo from '../images/pokergods.png'
 import type { TableState, BlindLevel } from '../types'
-import { getSeating, getLevel, handState, handActionState, handAction, connectWS, getProfile } from '../api'
+import { getSeating, handState, handActionState, handAction, connectWS, getProfile } from '../api'
 import { formatCardLabel } from '../utils/cards'
 import { playChip, playDeal, playWin, resumeAudio, playWarnTick, playBankStart, playCheck, playLose, playOverlayCue, playShuffle } from '../utils/sound'
 import { evaluateBestFive as evalClient, compareHands as cmpClient } from '../utils/hand'
@@ -28,7 +28,7 @@ function playSound(key: keyof typeof SOUND_COOLDOWN_MS, fn: () => void) {
 
 export default function TableView({ wallet, tableId }: { wallet?: string, tableId?: string }) {
   const [tables, setTables] = useState<TableState[]>([])
-  const [level, setLevel] = useState<BlindLevel | null>(null)
+  const [level, setLevel] = useState<BlindLevel | null>({ index: 0, durationSec: 120, smallBlind: 25, bigBlind: 50 })
   const [hand, setHand] = useState<any[] | null>(null)
   const [actionState, setActionState] = useState<any | null>(null)
   const [chatOpen, setChatOpen] = useState<boolean>(false)
@@ -98,9 +98,8 @@ const [showEmoji, setShowEmoji] = useState(false)
 
   useEffect(() => {
     getSeating().then(setTables).catch(console.error)
-    getLevel().then(setLevel).catch(console.error)
+    // Initial level default is Level 1; we'll override per-table from WS state when available
     handState().then(setHand).catch(() => {})
-    const lvlId = setInterval(() => { getLevel().then(setLevel).catch(() => {}) }, 5000)
     // Poll hand state with an early boost, then settle to 1500ms; keep handles to avoid leaks across remounts
     let handPollId: any = null
     let switchTimeout: any = null
@@ -307,7 +306,7 @@ const [showEmoji, setShowEmoji] = useState(false)
       }
       
     }, (status)=>{ setWsStatus(status) })
-    return () => { try { clearInterval(lvlId) } catch {}; try { if (handPollId) clearInterval(handPollId) } catch {}; try { if (switchTimeout) clearTimeout(switchTimeout) } catch {}; try { mo && mo.disconnect() } catch {}; ws.close() }
+    return () => { try { if (handPollId) clearInterval(handPollId) } catch {}; try { if (switchTimeout) clearTimeout(switchTimeout) } catch {}; try { mo && mo.disconnect() } catch {}; ws.close() }
   }, [])
 
   // Live ticker for countdowns (Timebank)
@@ -477,9 +476,13 @@ const [showEmoji, setShowEmoji] = useState(false)
           try {
             const winnersEnriched = (st.lastWinners || []).map((w:any)=> ({ ...w, displayName: nameOf(w.playerId) }))
             const showdownEnriched = (st.showdownInfo || []).map((s:any)=> ({ ...s, displayName: nameOf(s.playerId) }))
+            const holesByPlayer: Record<string, any[]|null> = {}
+            try { (st.players||[]).forEach((p:any)=> { holesByPlayer[p.playerId] = p.hole || null }) } catch {}
             sessionStorage.setItem('pg_last_match', JSON.stringify({
               tableId: st.tableId,
               handNumber: st.handNumber,
+              community: st.community || [],
+              holesByPlayer,
               winners: winnersEnriched,
               showdownInfo: showdownEnriched,
               you: wallet

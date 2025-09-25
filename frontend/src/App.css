@@ -677,17 +677,7 @@ h3 { margin: 8px 0 10px; }
 .theme-pokergods .admin-fab { background: linear-gradient(180deg, #ffe77a, #ffd54f); color:#3a2400; }
 
 /* Theme toggle button */
-.theme-toggle {
-  position: fixed; right: 16px; bottom: 64px; z-index: 9999;
-  padding: 8px 12px; border-radius: 999px; font-size: 12px;
-  background: linear-gradient(180deg, #8aff9a, #3fbf5a); color:#0a2a1b;
-  border:1px solid #3fbf5a; box-shadow: 0 6px 16px rgba(0,0,0,0.25);
-}
-
-/* Deep skin (darker controls/cards) */
-.theme-deep .action-info { background: rgba(10,10,18,0.96); color:#e7f0ff; border-color: rgba(140,140,255,0.25); }
-.theme-deep .action-row .btn-success { background: linear-gradient(180deg, #1c7a2f, #125a21); }
-.theme-deep .card-md, .theme-deep .card-sm { filter: saturate(1.05) contrast(1.08); }
+/* (removed theme toggle and deep skin; keeping base Pokergods theme) */
 
 /* Landing */
 .landing { max-width: 980px; margin: 2rem auto; text-align: center; }
