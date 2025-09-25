@@ -684,8 +684,11 @@ setInterval(() => {
                 const now = Date.now();
                 const holdUntil = postShowdownHoldUntilMs.get(tableId) ?? 0;
                 if (!holdUntil) {
-                    // start hold window (extended to allow client reveal pacing)
-                    postShowdownHoldUntilMs.set(tableId, now + 6000);
+                    // Start hold window. Use shorter hold for fold-ends (no showdown reveal),
+                    // longer hold only when real showdown info is present.
+                    const hasShowdownReveal = Array.isArray(pub.showdownInfo) && pub.showdownInfo.length > 0;
+                    const baseHoldMs = hasShowdownReveal ? 6000 : 600;
+                    postShowdownHoldUntilMs.set(tableId, now + baseHoldMs);
                     return; // keep broadcasting current showdown state
                 }
                 if (now < holdUntil) {
@@ -859,8 +862,8 @@ app.post("/admin/hu/setStacks", express.json(), (req, res) => {
         res.status(400).json({ ok: false, error: String(err?.message || err) });
     }
 });
-// Erzwinge 8080, damit Frontend (VITE_BACKEND_URL) konsistent ist
-const PORT = 8080;
+// Listen on Railway PORT or fallback to 8080 locally
+const PORT = Number(process.env.PORT || 8080);
 server.listen(PORT, () => {
     // eslint-disable-next-line no-console
     console.log("server listening on", PORT);
@@ -977,6 +980,47 @@ app.post('/auth/login', express.json(), (_req, res) => {
         return;
     }
     res.json({ ok: true, user: { username: u.username, wallet: u.wallet } });
+});
+// Change password (self)
+app.post('/auth/changePassword', express.json(), (req, res) => {
+    const { username, oldPassword, newPassword } = (req.body || {});
+    if (!username || !oldPassword || !newPassword) {
+        res.status(400).json({ ok: false, error: 'missing fields' });
+        return;
+    }
+    const u = usersByName.get(username);
+    if (!u || u.passwordHash !== hashPassword(oldPassword)) {
+        res.status(401).json({ ok: false, error: 'invalid credentials' });
+        return;
+    }
+    u.passwordHash = hashPassword(newPassword);
+    usersByName.set(u.username, u);
+    usersByWallet.set(u.wallet, u);
+    saveUsers().catch(() => { });
+    res.json({ ok: true });
+});
+// Admin: set user password
+app.post('/admin/users/setPassword', adminAuth, express.json(), (req, res) => {
+    const { username, newPassword } = (req.body || {});
+    if (!username || !newPassword) {
+        res.status(400).json({ ok: false, error: 'missing fields' });
+        return;
+    }
+    const u = usersByName.get(username);
+    if (!u) {
+        res.status(404).json({ ok: false, error: 'user not found' });
+        return;
+    }
+    u.passwordHash = hashPassword(newPassword);
+    usersByName.set(u.username, u);
+    usersByWallet.set(u.wallet, u);
+    saveUsers().catch(() => { });
+    res.json({ ok: true });
+});
+// Admin: list users (safe fields only)
+app.get('/admin/users', adminAuth, (_req, res) => {
+    const list = Array.from(usersByName.values()).map(u => ({ username: u.username, wallet: u.wallet, createdAt: u.createdAt }));
+    res.json({ ok: true, users: list });
 });
 // Admin: reset HU session leaderboard (wins/matches to 0)
 app.post('/admin/hu/resetSession', adminAuth, (_req, res) => {

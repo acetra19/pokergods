@@ -342,6 +342,19 @@
 }
 .felt.shuffle-once { animation: feltShuffle 420ms ease-out; }
 
+/* Deal-in animation: cards fly from center to seats */
+@keyframes dealFly {
+  0% { transform: translate(-50%, -50%) scale(0.8) rotate(0deg); opacity: 0; }
+  30% { opacity: 1; }
+  100% { transform: var(--to-transform, translate(0,0)) scale(1) rotate(var(--to-rot, 0deg)); opacity: 1; }
+}
+.deal-fly {
+  position: absolute;
+  left: 50%; top: 50%; transform: translate(-50%, -50%);
+  pointer-events: none; z-index: 6;
+}
+.deal-fly .card-sm { animation: dealFly 420ms ease-out forwards; will-change: transform, opacity; }
+
 @keyframes chipFlashOnce {
   0% { transform: translate(-50%, -50%) scale(1); }
   50% { transform: translate(-50%, -50%) scale(1.06); }

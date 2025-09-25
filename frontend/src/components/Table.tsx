@@ -35,6 +35,7 @@ export default function TableView({ wallet, tableId }: { wallet?: string, tableI
   const [chatLines, setChatLines] = useState<{ts:number,text:string,tableId:string|null}[]>([])
   const [toast, setToast] = useState<string>('')
   const [floatTexts, setFloatTexts] = useState<Array<{ id:string; text:string; x:number; y:number; size?:number }>>([])
+  const [dealFx, setDealFx] = useState<Array<{ id:string; x:number; y:number; rot:number }>>([])
   const [stageAnimKey, setStageAnimKey] = useState<number>(0)
   const [actorAnimKey, setActorAnimKey] = useState<number>(0)
   const [wsStatus, setWsStatus] = useState<'init'|'open'|'retrying'|'closed'>('init')
@@ -498,6 +499,30 @@ const [showEmoji, setShowEmoji] = useState(false)
         const isNewMatch = !!newMatchRef.current
         if (amSeated && isNewMatch) { resumeAudio(); playShuffle() }
         newMatchRef.current = false
+      } catch {}
+      // Deal-in FX: spawn two small cards from center towards hero/villain anchor points
+      try {
+        const felt = feltRef.current as HTMLElement | null
+        if (felt) {
+          const feltRect = felt.getBoundingClientRect()
+          const heroEl = document.querySelector('.seat-layer .seat-hero') as HTMLElement | null
+          const villEl = document.querySelector('.seat-layer .seat-villain') as HTMLElement | null
+          const targets: Array<{x:number;y:number;rot:number}> = []
+          const pushTarget = (el: HTMLElement | null, fallbackY: number, baseRot: number) => {
+            if (el) {
+              const r = el.getBoundingClientRect()
+              targets.push({ x: r.left + r.width/2 - (feltRect.left + feltRect.width/2), y: r.top + r.height/2 - (feltRect.top + feltRect.height/2), rot: baseRot })
+              targets.push({ x: r.left + r.width/2 - (feltRect.left + feltRect.width/2) + 14, y: r.top + r.height/2 - (feltRect.top + feltRect.height/2) + 8, rot: baseRot - 10 })
+            } else {
+              targets.push({ x: 0, y: fallbackY, rot: baseRot })
+              targets.push({ x: 12, y: fallbackY + 8, rot: baseRot - 10 })
+            }
+          }
+          pushTarget(heroEl, 180, 6)
+          pushTarget(villEl, -180, -6)
+          setDealFx(targets.map(t => ({ id: Math.random().toString(36).slice(2), ...t })))
+          setTimeout(() => setDealFx([]), 460)
+        }
       } catch {}
       // Center table in viewport at match start
       try {
@@ -1091,8 +1116,16 @@ const [showEmoji, setShowEmoji] = useState(false)
           <h3>{t.tableId}</h3>
           <div className="felt-wrap">
             <div className={`felt ${riverPulse ? 'river-pulse' : ''} ${anyAllIn ? 'allin-mode' : ''}`} ref={feltRef}>
-            <div className={`ws-indicator ${wsStatus}`}>{wsStatus}</div>
-            {/* Community + HUD center */}
+              {/* deal-in animation layer */}
+              {dealFx.length>0 && (
+                <div className="deal-fly" aria-hidden>
+                  {dealFx.map((f)=> (
+                    <span key={f.id} className="card-sm" style={{ animationDelay: '0ms', ['--to-transform' as any]: `translate(${f.x}px, ${f.y}px)`, ['--to-rot' as any]: `${f.rot}deg` }} />
+                  ))}
+                </div>
+              )}
+              <div className={`ws-indicator ${wsStatus}`}>{wsStatus}</div>
+              {/* Community + HUD center */}
               <div className="hud" style={{ pointerEvents:'none', width:'100%', height:'100%' }}>
                 <div className="center-stack">
                   <div className={`pot ${actionState && (actionState.legalActions?.includes('raise')||actionState.legalActions?.includes('bet'))? 'pot-pulse':''} ${riverPulse ? 'pot-river-pulse':''}`} data-pulse={riverPulse}>Pot {pot}</div>
