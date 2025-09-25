@@ -154,27 +154,44 @@ app.get("/seating", (_req, res) => {
   res.json(demoTournament.getSeating());
 });
 
-app.get("/level", (_req, res) => {
+// HU Blinds: dynamic levels starting from Level 1 at server start
+type HUBlindLevel = { durationSec: number; smallBlind: number; bigBlind: number }
+const HU_LEVELS: HUBlindLevel[] = (() => {
   try {
-    const v: any = demoTournament.getPublicView();
-    const lvl0 = (v && Array.isArray(v.blindLevels) && v.blindLevels[0]) ? v.blindLevels[0] : demoTournament.getCurrentLevel();
-    res.json(lvl0);
-  } catch {
-    res.json(demoTournament.getCurrentLevel());
-  }
-});
-
-function getFirstBlindLevel(): { smallBlind: number; bigBlind: number } {
-  // Prefer explicit env overrides, then fallback to known defaults (25/50)
+    const v: any = demoTournament.getPublicView() as any
+    if (v && Array.isArray((v as any).blindLevels) && (v as any).blindLevels.length) {
+      return (v as any).blindLevels.map((b:any)=> ({ durationSec: Number(b.durationSec||120), smallBlind: Number(b.smallBlind||25), bigBlind: Number(b.bigBlind||50) }))
+    }
+  } catch {}
+  return [
+    { durationSec: 120, smallBlind: 25, bigBlind: 50 },
+    { durationSec: 120, smallBlind: 50, bigBlind: 100 },
+    { durationSec: 120, smallBlind: 100, bigBlind: 200 },
+  ]
+})()
+const HU_BASE_MS = Date.now()
+function getHUCurrentLevel(): { index:number; durationSec:number; smallBlind:number; bigBlind:number } {
   const envSB = Number(process.env.HU_START_SB || '')
   const envBB = Number(process.env.HU_START_BB || '')
   if (Number.isFinite(envSB) && Number.isFinite(envBB) && envSB>0 && envBB>0) {
-    return { smallBlind: envSB, bigBlind: envBB }
+    return { index: 0, durationSec: HU_LEVELS[0]?.durationSec || 120, smallBlind: envSB, bigBlind: envBB }
   }
-  // If the tournament manager doesn't expose blindLevels in public view,
-  // return Level 1 defaults (matching the configured first entry)
-  return { smallBlind: 25, bigBlind: 50 }
+  let elapsed = Math.max(0, Math.floor((Date.now() - HU_BASE_MS)/1000))
+  let idx = 0
+  for (let i=0;i<HU_LEVELS.length;i++) {
+    const d = HU_LEVELS[i].durationSec || 120
+    if (elapsed < d) { idx = i; break }
+    elapsed -= d
+    idx = Math.min(HU_LEVELS.length-1, i+1)
+  }
+  const L = HU_LEVELS[idx]
+  return { index: idx, durationSec: L.durationSec, smallBlind: L.smallBlind, bigBlind: L.bigBlind }
 }
+
+app.get("/level", (_req, res) => {
+  const L = getHUCurrentLevel()
+  res.json(L)
+});
 
 app.post("/admin/reset", adminAuth, (_req, res) => {
   demoTournament.reset(Date.now() + 5 * 60_000);

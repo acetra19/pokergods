@@ -89,6 +89,7 @@ const [showEmoji, setShowEmoji] = useState(false)
   const prevTableIdRef = useRef<string | null>(null)
   const newMatchRef = useRef<boolean>(false)
   const lastShuffleAtRef = useRef<number>(0)
+  const didMatchShuffleRef = useRef<boolean>(false)
   // simple deterministic pseudo random based on hand number
   const seededRand = (seed:number, salt:number=1) => {
     const x = Math.sin(seed * 9301 + salt * 49297) * 233280
@@ -332,6 +333,7 @@ const [showEmoji, setShowEmoji] = useState(false)
     const prev = prevTableIdRef.current
     if (currId && currId !== prev) {
       newMatchRef.current = true
+      didMatchShuffleRef.current = false
     }
     prevTableIdRef.current = currId
   }, [myTable?.tableId])
@@ -519,10 +521,11 @@ const [showEmoji, setShowEmoji] = useState(false)
         const render = renderTables[0]
         const amSeated = !!(render && Array.isArray((render as any).seats) && (render as any).seats.some((p:any)=> p?.playerId === wallet))
         const isNewMatch = !!newMatchRef.current
-        if (amSeated && isNewMatch) {
+        if (amSeated && isNewMatch && !didMatchShuffleRef.current) {
           const now = Date.now()
           if (now - (lastShuffleAtRef.current || 0) > 900) {
             resumeAudio(); playShuffle(); lastShuffleAtRef.current = now
+            didMatchShuffleRef.current = true
           }
         }
         newMatchRef.current = false
