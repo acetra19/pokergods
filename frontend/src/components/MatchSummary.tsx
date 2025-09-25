@@ -1,4 +1,5 @@
 import pgLogo from '../images/pokergods.png'
+import { formatCardLabel } from '../utils/cards'
 
 export default function MatchSummary() {
   let data: any = null
@@ -20,7 +21,7 @@ export default function MatchSummary() {
   const cards = Array.isArray(data?.showdownInfo) ? data.showdownInfo : []
   const holesByPlayer = (data?.holesByPlayer || {}) as Record<string, any[]|null>
   const community = Array.isArray(data?.community) ? data.community : []
-  const label = (c:any) => (c ? `${c.rank}${c.suit}` : '')
+  const label = (c:any) => (c ? formatCardLabel(c) : '')
   return (
     <div className="pg-curtain" style={{ pointerEvents:'none' }}>
       <div className="pg-summary" style={{
@@ -36,9 +37,9 @@ export default function MatchSummary() {
         {/* Snapshot of final hand */}
         <div style={{ marginTop:12, padding:12, border:'1px solid rgba(255,213,79,0.25)', borderRadius:12, background:'rgba(26,8,48,0.6)' }}>
           <div style={{ display:'flex', flexDirection:'column', alignItems:'center', gap:8 }}>
-            <div style={{ display:'flex', gap:8 }}>
+            <div style={{ display:'flex', gap:8, justifyContent:'center' }}>
               {community.map((c:any, i:number)=> (
-                <span key={`c-${i}`} className={`card-md suit-${c?.suit||'x'}`}>{label(c)}</span>
+                <span key={`c-${i}`} className={`card-md ${c?.suit?`suit-${c.suit}`:''}`}>{label(c)}</span>
               ))}
             </div>
             <div style={{ display:'flex', gap:28 }}>
@@ -51,8 +52,8 @@ export default function MatchSummary() {
                     const h1 = hx?.[1] || null
                     return (
                       <>
-                        <span className={`card-sm suit-${(h0?.suit||'x')}`}>{label(h0)}</span>
-                        <span className={`card-sm suit-${(h1?.suit||'x')}`}>{label(h1)}</span>
+                        <span className={`card-sm ${h0?.suit?`suit-${h0.suit}`:''}`}>{label(h0)}</span>
+                        <span className={`card-sm ${h1?.suit?`suit-${h1.suit}`:''}`}>{label(h1)}</span>
                       </>
                     )
                   })()}

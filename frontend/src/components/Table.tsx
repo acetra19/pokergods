@@ -599,14 +599,14 @@ const [showEmoji, setShowEmoji] = useState(false)
           // const remaining = communityCards.length - i
           let delay = 300
           const revealedSoFar = i
-          if (revealedSoFar === 3) delay = anyAllIn ? 850 : 380 // post-flop settle
-          else if (revealedSoFar === 4) delay = anyAllIn ? 1100 : 480 // turn
-          else if (revealedSoFar === 5) delay = anyAllIn ? 1400 : 580 // river
+          if (revealedSoFar === 3) delay = anyAllIn ? 1300 : 420 // post-flop settle
+          else if (revealedSoFar === 4) delay = anyAllIn ? 1600 : 520 // turn
+          else if (revealedSoFar === 5) delay = anyAllIn ? 2000 : 650 // river
           setTimeout(step, delay)
         } else {
           // full reveal reached; set overlay cue and schedule hold before server jump
           try { playSound('overlay', () => playOverlayCue()) } catch {}
-          overlayShowAtMsRef.current = Date.now() + 1000
+          overlayShowAtMsRef.current = Date.now() + (anyAllIn ? 1600 : 1000)
         }
       }
       const extra = nextRevealHoldMsRef.current; nextRevealHoldMsRef.current = 0
