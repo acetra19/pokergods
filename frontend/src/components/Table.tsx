@@ -180,7 +180,7 @@ const [showEmoji, setShowEmoji] = useState(false)
               setRiverPulse((curr) => (curr === stamp ? 0 : curr))
             }, 1200)
           }
-          if (st.lastWinners && st.lastWinners.length && st.street === 'showdown') {
+          if (st.lastWinners && st.lastWinners.length && st.street === 'showdown' && Array.isArray(st.showdownInfo) && st.showdownInfo.length>0) {
             playSound('win', () => { resumeAudio(); playWin() })
             addFloat('Showdown', 38, 28)
           }
@@ -385,16 +385,10 @@ const [showEmoji, setShowEmoji] = useState(false)
   // No JS staging to avoid flicker; CSS-only reveal handles stagger
   
   const isRealShowdown = useMemo(() => !!(myTable && myTable.street === 'showdown'), [myTable])
-  const revealVillain = useMemo(() => {
-    // Villain-Holecards NUR im echten Showdown zeigen, nicht bei Fold‑Ends
-    return !!isRealShowdown
-  }, [isRealShowdown])
-  const inRevealUI = useMemo(() => {
-    // Reveal‑UI nur für echten Showdown; Fold‑Ends sollen NICHT in Reveal‑Flow gehen
-    const st = myTable
-    if (!st) return false
-    return st.street === 'showdown'
-  }, [myTable])
+  const hasShowdownInfo = useMemo(() => !!(myTable && Array.isArray((myTable as any).showdownInfo) && (myTable as any).showdownInfo.length > 0), [myTable])
+  const isShowdownReveal = useMemo(() => isRealShowdown && hasShowdownInfo, [isRealShowdown, hasShowdownInfo])
+  const revealVillain = useMemo(() => isShowdownReveal, [isShowdownReveal])
+  const inRevealUI = useMemo(() => isShowdownReveal, [isShowdownReveal])
   const inRevealUIRef = useRef(inRevealUI)
   useEffect(()=> { inRevealUIRef.current = inRevealUI }, [inRevealUI])
 
@@ -426,7 +420,7 @@ const [showEmoji, setShowEmoji] = useState(false)
     const winners = st.lastWinners
     if (!Array.isArray(winners) || !winners.length) return
     // Overlay nur bei echtem Showdown‑Matchende (nicht bei Fold‑Ends)
-    const matchEnd = !!(st.players?.some((p:any)=> p.busted || (p.chips ?? 0) <= 0)) && st.street === 'showdown'
+    const matchEnd = !!(st.players?.some((p:any)=> p.busted || (p.chips ?? 0) <= 0)) && st.street === 'showdown' && Array.isArray(st.showdownInfo) && st.showdownInfo.length>0
     if (!matchEnd) return
     const winnersSig = JSON.stringify(winners)
     const alreadyShown = !!(lastOverlayShownRef.current && lastOverlayShownRef.current.tableId === st.tableId && lastOverlayShownRef.current.handNumber === st.handNumber)
@@ -476,6 +470,8 @@ const [showEmoji, setShowEmoji] = useState(false)
       // sobald neuer Deal beginnt: Snapshot/Hold aufheben
       postHoldUntilMsRef.current = 0
       tableSnapshotRef.current = null
+      // Reset reveal flags between hands
+      try { inRevealUIRef.current = false } catch {}
       // subtle shuffle feedback
       try {
         const felt = feltRef.current
