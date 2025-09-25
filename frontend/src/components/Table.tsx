@@ -88,7 +88,8 @@ const [showEmoji, setShowEmoji] = useState(false)
   // Track match boundaries (tableId change)
   const prevTableIdRef = useRef<string | null>(null)
   const newMatchRef = useRef<boolean>(false)
-  const lastShuffleAtRef = useRef<number>(0)
+  // deprecated: guarded in sound.ts with global cooldown now
+  // const lastShuffleAtRef = useRef<number>(0)
   const didMatchShuffleRef = useRef<boolean>(false)
   const lastShuffleKeyRef = useRef<string>('')
   // simple deterministic pseudo random based on hand number
@@ -532,13 +533,13 @@ const [showEmoji, setShowEmoji] = useState(false)
       try {
         const render = renderTables[0]
         const amSeated = !!(render && Array.isArray((render as any).seats) && (render as any).seats.some((p:any)=> p?.playerId === wallet))
-        const shuffleKey = `${(render?.tableId || myTable?.tableId || 't')}-${handNumber}`
-        if (amSeated && !didMatchShuffleRef.current && lastShuffleKeyRef.current !== shuffleKey) {
-          const now = Date.now()
-          if (now - (lastShuffleAtRef.current || 0) > 900) {
-            resumeAudio(); playShuffle(); lastShuffleAtRef.current = now
+        const tableKey = myTable?.tableId ?? null
+        if (amSeated && tableKey) {
+          const k = `${tableKey}-${handNumber}`
+          if (lastShuffleKeyRef.current !== k) {
+            lastShuffleKeyRef.current = k
             didMatchShuffleRef.current = true
-            lastShuffleKeyRef.current = shuffleKey
+            resumeAudio(); playShuffle()
           }
         }
         newMatchRef.current = false

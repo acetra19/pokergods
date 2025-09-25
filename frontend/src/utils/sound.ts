@@ -73,10 +73,14 @@ export function playDeal() {
 
 // Shuffle samples rotation (bundled asset URLs)
 const shuffleSounds = [shuffle1, shuffle2, shuffle3, shuffle4, shuffle5];
+let lastShuffleTs = 0;
 function randIndex(max: number): number { try { return Math.floor(Math.random() * max) } catch { return 0 } }
 export function playShuffle() {
   try {
     if (muted) return;
+    const now = Date.now();
+    if (now - lastShuffleTs < 1200) return; // global cooldown to avoid double triggers
+    lastShuffleTs = now;
     const url = shuffleSounds[randIndex(shuffleSounds.length)];
     const a = new Audio(url);
     a.volume = 0.3;
