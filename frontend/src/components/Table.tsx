@@ -117,11 +117,25 @@ const [showEmoji, setShowEmoji] = useState(false)
     const ws = connectWS((msg) => {
       const m = msg as any
       if (m?.type === 'tournament' && m.payload?.event === 'hand_state') {
-        const st = m.payload.states
+        const states: any[] = Array.isArray(m.payload.states) ? m.payload.states : []
+        // Select only the state for our current table (or the one we play on)
+        const mine = (() => {
+          // prefer explicit prop tableId
+          if (tableId) {
+            const hit = states.find((x:any)=> x && x.tableId === tableId)
+            if (hit) return hit
+          }
+          // fallback: find state that contains our wallet
+          if (wallet) {
+            const hit = states.find((x:any)=> Array.isArray(x?.players) && x.players.some((p:any)=> p?.playerId === wallet))
+            if (hit) return hit
+          }
+          return states[0] || null
+        })()
         const sig = (()=>{
           try {
-            if (!st?.[0]) return JSON.stringify(null)
-            const x = st[0]
+            if (!mine) return JSON.stringify(null)
+            const x = mine
             return JSON.stringify({
               t: x.tableId,
               h: x.handNumber,
@@ -135,24 +149,24 @@ const [showEmoji, setShowEmoji] = useState(false)
         })()
         if (sig !== prevHandSig.current) {
           prevHandSig.current = sig
-          setHand(st)
+          setHand(states)
         }
         // sound hooks + floating commentary
-        if (Array.isArray(m.payload.states)) {
-          const st = m.payload.states[0]
-          if (st?.street === 'preflop' && st?.community?.length === 0) {
+        if (mine) {
+          const st = mine
+          if (st.street === 'preflop' && st.community?.length === 0) {
             playSound('deal', () => { resumeAudio(); playDeal() })
             addFloat('New Hand', 38, 28)
           }
-          if (st?.street === 'flop' && st?.community?.length === 3) {
+          if (st.street === 'flop' && st.community?.length === 3) {
             playSound('deal', () => playDeal())
             addFloat('Flop', 38, 28)
           }
-          if (st?.street === 'turn' && st?.community?.length === 4) {
+          if (st.street === 'turn' && st.community?.length === 4) {
             playSound('deal', () => playDeal())
             addFloat('Turn', 38, 28)
           }
-          if (st?.street === 'river' && st?.community?.length === 5) {
+          if (st.street === 'river' && st.community?.length === 5) {
             playSound('deal', () => playDeal())
             addFloat('River', 38, 28)
             const stamp = Date.now()
@@ -161,14 +175,14 @@ const [showEmoji, setShowEmoji] = useState(false)
               setRiverPulse((curr) => (curr === stamp ? 0 : curr))
             }, 1200)
           }
-          if (st?.lastWinners && st.lastWinners.length) {
+          if (st.lastWinners && st.lastWinners.length) {
             playSound('win', () => { resumeAudio(); playWin() })
             addFloat('Showdown', 38, 28)
           }
         }
         // Display-Chips nur aktualisieren, wenn nicht mitten im Reveal eines Showdowns
         try {
-          const st0: any = Array.isArray(st) ? st[0] : null
+          const st0: any = mine || null
           if (st0 && Array.isArray(st0.players)) {
             const serverCommLen = Array.isArray(st0.community) ? st0.community.length : 0
             const freezeActive = inRevealUIRef.current
@@ -467,7 +481,12 @@ const [showEmoji, setShowEmoji] = useState(false)
         const chips = document.querySelector('.chip-stack') as HTMLElement | null
         if (chips) { chips.classList.remove('flash-once'); void chips.offsetWidth; chips.classList.add('flash-once') }
       } catch {}
-      try { resumeAudio(); playShuffle() } catch {}
+      // Only play shuffle when this client is actually seated in the table we render
+      try {
+        const render = renderTables[0]
+        const amSeated = !!(render && Array.isArray((render as any).seats) && (render as any).seats.some((p:any)=> p?.playerId === wallet))
+        if (amSeated) { resumeAudio(); playShuffle() }
+      } catch {}
       // Center table in viewport at match start
       try {
         const el = feltRef.current
