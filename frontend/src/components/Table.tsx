@@ -180,7 +180,7 @@ const [showEmoji, setShowEmoji] = useState(false)
               setRiverPulse((curr) => (curr === stamp ? 0 : curr))
             }, 1200)
           }
-          if (st.lastWinners && st.lastWinners.length) {
+          if (st.lastWinners && st.lastWinners.length && st.street === 'showdown') {
             playSound('win', () => { resumeAudio(); playWin() })
             addFloat('Showdown', 38, 28)
           }
@@ -386,18 +386,14 @@ const [showEmoji, setShowEmoji] = useState(false)
   
   const isRealShowdown = useMemo(() => !!(myTable && myTable.street === 'showdown'), [myTable])
   const revealVillain = useMemo(() => {
-    if (!myTable) return false
-    const st = myTable
-    // Server-semantics: reveal nur bei Showdown oder wenn allInLocked && bettingClosed
-    const showdown = isRealShowdown
-    const allInLocked = !!st.allInLocked
-    const bettingClosed = !!st.bettingClosed
-    return !!(showdown || (allInLocked && bettingClosed))
-  }, [hand, isRealShowdown])
+    // Villain-Holecards NUR im echten Showdown zeigen, nicht bei Fold‑Ends
+    return !!isRealShowdown
+  }, [isRealShowdown])
   const inRevealUI = useMemo(() => {
+    // Reveal‑UI nur für echten Showdown; Fold‑Ends sollen NICHT in Reveal‑Flow gehen
     const st = myTable
     if (!st) return false
-    return st.street === 'showdown' || (st.allInLocked && st.bettingClosed)
+    return st.street === 'showdown'
   }, [myTable])
   const inRevealUIRef = useRef(inRevealUI)
   useEffect(()=> { inRevealUIRef.current = inRevealUI }, [inRevealUI])
@@ -429,7 +425,8 @@ const [showEmoji, setShowEmoji] = useState(false)
     if (!st) return
     const winners = st.lastWinners
     if (!Array.isArray(winners) || !winners.length) return
-    const matchEnd = !!(st.players?.some((p:any)=> p.busted || (p.chips ?? 0) <= 0))
+    // Overlay nur bei echtem Showdown‑Matchende (nicht bei Fold‑Ends)
+    const matchEnd = !!(st.players?.some((p:any)=> p.busted || (p.chips ?? 0) <= 0)) && st.street === 'showdown'
     if (!matchEnd) return
     const winnersSig = JSON.stringify(winners)
     const alreadyShown = !!(lastOverlayShownRef.current && lastOverlayShownRef.current.tableId === st.tableId && lastOverlayShownRef.current.handNumber === st.handNumber)
