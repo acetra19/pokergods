@@ -44,6 +44,8 @@ export default function TableView({ wallet, tableId }: { wallet?: string, tableI
   const [seatBloom, setSeatBloom] = useState<Record<string, number>>({})
 const [showEmoji, setShowEmoji] = useState(false)
   const [longPress, setLongPress] = useState<{active:boolean; start:number}>({ active:false, start:0 })
+  // Freeze the bet/raise button label right after submit to avoid flicker back to default
+  const [pendingBtnLabel, setPendingBtnLabel] = useState<string | null>(null)
   const longPressTimer = useRef<number | null>(null)
   const prevHandSig = useRef<string>('')
   const prevActionSig = useRef<string>('')
@@ -1351,6 +1353,7 @@ const [showEmoji, setShowEmoji] = useState(false)
           })()
           // const imInHand = !!me && !!me.inHand && !me.busted
           const primaryLabel = () => {
+            if (pendingBtnLabel) return pendingBtnLabel
             if (sizingAmt && sizingAmt > 0) return isBet ? `Bet ${sizingAmt}` : `Raise to ${sizingAmt}`
             if (isBet) {
               const bb = (level?.bigBlind ?? actionState.minRaise) as number
@@ -1394,10 +1397,13 @@ const [showEmoji, setShowEmoji] = useState(false)
                     let v = Number(input.value||0);
                     if (v < minTo) v = minTo;
                     try {
+                      setPendingBtnLabel(isBet ? `Bet ${v}` : `Raise to ${v}`)
                       await handAction({ tableId: renderTables[0].tableId, playerId: actor, type: isBet?'bet':'raise', amount: v });
                       input.value='';
                       setSizingAmt(null)
-                    } catch(err:any){ alert(err?.message||'Action error') }
+                    } catch(err:any){ alert(err?.message||'Action error') } finally {
+                      setTimeout(()=> setPendingBtnLabel(null), 300)
+                    }
                   }}>
                       <div className="sizing-controls" style={{ background:'#fff' }}>
                       <input name="amt" type="number" min={minTo} max={maxTo} placeholder={String(minTo)} disabled={!canAct}
