@@ -19,6 +19,7 @@ export default function MatchSummary() {
   const offset = 260 // push content and logo further down
   const cards = Array.isArray(data?.showdownInfo) ? data.showdownInfo : []
   const community = Array.isArray(data?.community) ? data.community : []
+  const label = (c:any) => (c ? `${c.rank}${c.suit}` : '')
   return (
     <div className="pg-curtain" style={{ pointerEvents:'none' }}>
       <div className="pg-summary" style={{
@@ -36,15 +37,15 @@ export default function MatchSummary() {
           <div style={{ display:'flex', flexDirection:'column', alignItems:'center', gap:8 }}>
             <div style={{ display:'flex', gap:8 }}>
               {community.map((c:any, i:number)=> (
-                <span key={`c-${i}`} className={`card-md suit-${c.suit}`}>{`${c.rank}${c.suit}`}</span>
+                <span key={`c-${i}`} className={`card-md suit-${c?.suit||'x'}`}>{label(c)}</span>
               ))}
             </div>
             <div style={{ display:'flex', gap:28 }}>
               {cards.map((s:any)=> (
                 <div key={s.playerId} style={{ display:'flex', alignItems:'center', gap:6 }}>
                   <span style={{ fontSize:12, opacity:0.85 }}>{nameOf(s.playerId)}</span>
-                  <span className={`card-sm suit-${(s.hole?.[0]?.suit||'')}`}>{s.hole?.[0]? `${s.hole[0].rank}${s.hole[0].suit}`: ''}</span>
-                  <span className={`card-sm suit-${(s.hole?.[1]?.suit||'')}`}>{s.hole?.[1]? `${s.hole[1].rank}${s.hole[1].suit}`: ''}</span>
+                  <span className={`card-sm suit-${(s.hole?.[0]?.suit||'x')}`}>{label(s.hole?.[0])}</span>
+                  <span className={`card-sm suit-${(s.hole?.[1]?.suit||'x')}`}>{label(s.hole?.[1])}</span>
                 </div>
               ))}
             </div>

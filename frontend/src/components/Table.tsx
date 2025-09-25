@@ -136,6 +136,7 @@ const [showEmoji, setShowEmoji] = useState(false)
       const m = msg as any
       if (m?.type === 'tournament' && m.payload?.event === 'hand_state') {
         const states: any[] = Array.isArray(m.payload.states) ? m.payload.states : []
+        const blindsByTable = (m.payload && m.payload.blindsByTable) ? m.payload.blindsByTable as Record<string,{sb:number;bb:number}> : {}
         // Select only the state for our current table (or the one we play on)
         const mine = (() => {
           // prefer explicit prop tableId
@@ -168,6 +169,13 @@ const [showEmoji, setShowEmoji] = useState(false)
         if (sig !== prevHandSig.current) {
           prevHandSig.current = sig
           setHand(states)
+          try {
+            const tid = (mine && mine.tableId) || (states[0]?.tableId)
+            if (tid && blindsByTable[tid]) {
+              const b = blindsByTable[tid]
+              setLevel({ index: 0, durationSec: 120, smallBlind: b.sb, bigBlind: b.bb } as any)
+            }
+          } catch {}
         }
         // sound hooks + floating commentary
         if (mine) {

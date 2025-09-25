@@ -216,6 +216,7 @@ app.post("/admin/startNow", adminAuth, (_req, res) => {
 
 // Simple per-table game engines map
 const tableEngines = new Map<string, GameEngine>();
+const huBlindsByTable = new Map<string, { sb:number; bb:number }>();
 const hu = new HUManager();
 // Simple in-memory leaderboard for HU sessions (with persistence)
 const huLeaderboard = new Map<string, { wins: number; matches: number }>();
@@ -242,6 +243,7 @@ app.post("/hand/start", (_req, res) => {
     if (!eng) {
       eng = new GameEngine(table, { sb: lvl.smallBlind, bb: lvl.bigBlind });
       tableEngines.set(table.tableId, eng);
+      huBlindsByTable.set(table.tableId, { sb: lvl.smallBlind, bb: lvl.bigBlind })
     }
     // set a fresh provably-fair seed per hand
     const serverSeed = randomBytes(32).toString("hex");
@@ -362,6 +364,7 @@ app.post("/hu/bot/join/:wallet", (req, res) => {
   const lvl = getHUStartLevel();
   const eng = new GameEngine(table, { sb: lvl.smallBlind, bb: lvl.bigBlind });
   tableEngines.set(table.tableId, eng);
+  huBlindsByTable.set(table.tableId, { sb: lvl.smallBlind, bb: lvl.bigBlind })
   const serverSeed = randomBytes(32).toString("hex");
   const commit = createHash("sha256").update(serverSeed).digest("hex");
   fairnessByTable.set(table.tableId, { commit, serverSeed });
@@ -577,7 +580,9 @@ const catRank = (c: string) => {
 // Broadcast current hand states to clients
 const broadcastHandStates = () => {
   const states = Array.from(tableEngines.values()).map((e) => e.getPublic());
-  broadcast({ type: "tournament", payload: { event: "hand_state", states } });
+  const blindsByTable: Record<string, { sb:number; bb:number }> = {}
+  tableEngines.forEach((_e, tid)=> { const b = huBlindsByTable.get(tid); if (b) blindsByTable[tid] = b })
+  broadcast({ type: "tournament", payload: { event: "hand_state", states, blindsByTable } });
 };
 
 const broadcastActionStates = () => {
@@ -653,6 +658,7 @@ function tryStartHuMatch(): boolean {
   const lvl = getHUStartLevel();
   const eng = new GameEngine(huMatch.table, { sb: lvl.smallBlind, bb: lvl.bigBlind });
   tableEngines.set(huMatch.table.tableId, eng);
+  huBlindsByTable.set(huMatch.table.tableId, { sb: lvl.smallBlind, bb: lvl.bigBlind })
   // provably-fair: generate server seed, commit, and pre-install RNG for next shuffle
   const serverSeed = randomBytes(32).toString("hex");
   const commit = createHash("sha256").update(serverSeed).digest("hex");
