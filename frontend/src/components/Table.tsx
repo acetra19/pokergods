@@ -800,6 +800,12 @@ const [showEmoji, setShowEmoji] = useState(false)
     const x = xPct
     const y = yPct
     setFloatTexts((arr)=> [...arr, { id, text, x, y, size }])
+    // Mirror into local log so the "Show log" panel always has context
+    try {
+      const currentTableId = (hand && hand[0]?.tableId) || renderTables[0]?.tableId || null
+      const line = { ts: Date.now(), text: `[FX] ${text}`, tableId: currentTableId }
+      setChatLines((prev)=> [line as any, ...prev].slice(0,60))
+    } catch {}
     setTimeout(()=> setFloatTexts((arr)=> arr.filter(f=> f.id !== id)), 2200)
   }
 
