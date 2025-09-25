@@ -440,7 +440,8 @@ type ServerMessage =
   | { type: "welcome"; serverTime: number }
   | { type: "echo"; payload: string }
   | { type: "tournament"; payload: unknown }
-  | { type: "chat"; payload: { tableId: string | null; message: string; timestamp: number } };
+  | { type: "chat"; payload: { tableId: string | null; message: string; timestamp: number } }
+  | { type: "emoji"; payload: { tableId: string; from: string; emoji: string; ts: number } };
 
 wss.on("connection", (ws: WebSocket) => {
   const welcome: ServerMessage = { type: "welcome", serverTime: Date.now() };
@@ -456,6 +457,11 @@ wss.on("connection", (ws: WebSocket) => {
         if (prev && prev !== obj.wallet) { decOnline(prev) }
         wsToWallet.set(ws, obj.wallet);
         incOnline(obj.wallet);
+        return;
+      }
+      if (obj && obj.type === 'emoji' && typeof obj.tableId==='string' && typeof obj.emoji==='string') {
+        const from = wsToWallet.get(ws) || '';
+        broadcast({ type:'emoji', payload: { tableId: obj.tableId, from, emoji: obj.emoji, ts: Date.now() } });
         return;
       }
       const echo: ServerMessage = { type: "echo", payload: txt };

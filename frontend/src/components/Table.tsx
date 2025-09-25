@@ -214,6 +214,15 @@ const [showEmoji, setShowEmoji] = useState(false)
           }
         } catch {}
       }
+      if ((m as any)?.type === 'emoji') {
+        try {
+          const e = (m as any).payload
+          const currId = (hand && hand[0]?.tableId) || renderTables[0]?.tableId
+          if (e && e.tableId && currId && e.tableId === currId) {
+            addFloat(String(e.emoji || '🙂'), 68, 24, 28)
+          }
+        } catch {}
+      }
       if (m?.type === 'tournament' && m.payload?.event === 'action_state') {
         const list = Array.isArray(m.payload.states) ? m.payload.states : []
         const st = list.find((x:any)=> !!x) || null
@@ -250,7 +259,7 @@ const [showEmoji, setShowEmoji] = useState(false)
             const remaining = Math.max(0, p.chips - committed)
             nextDisplay[p.playerId] = remaining
             nextCommitted[p.playerId] = committed
-          })
+    })
           displayChipsRef.current = nextDisplay
           committedRef.current = nextCommitted
         }
@@ -781,6 +790,11 @@ const [showEmoji, setShowEmoji] = useState(false)
 
   const triggerHeroEmoji = (emoji: string, seatId?: string) => {
     addFloat(emoji, 32, 76, 28)
+    // broadcast to other clients via WS
+    try {
+      const tId = renderTables[0]?.tableId || (hand && hand[0]?.tableId)
+      ;(window as any).pg_ws_send && (window as any).pg_ws_send({ type:'emoji', tableId: tId, emoji })
+    } catch {}
     if (seatId) {
       setSeatBloom((prev) => ({ ...prev, [seatId]: Date.now() }))
       setTimeout(() => setSeatBloom((prev) => {

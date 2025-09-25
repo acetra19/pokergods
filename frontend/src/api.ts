@@ -30,6 +30,8 @@ export function connectWS(
     const openWS = () => {
       ws = new WebSocket(wsUrl);
       ws.onopen = () => { retries = 0; try { onStatus && onStatus('open', 0); } catch {} };
+      // expose a send helper for app-level broadcasts (e.g., emojis)
+      try { (window as any).pg_ws_send = (payload: any) => { try { ws && ws.readyState === ws.OPEN && ws.send(JSON.stringify(payload)) } catch {} } } catch {}
       ws.onmessage = (ev) => {
         try {
           const data = JSON.parse(ev.data as string)
