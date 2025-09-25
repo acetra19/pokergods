@@ -1449,9 +1449,9 @@ const [showEmoji, setShowEmoji] = useState(false)
           );
         })()}
         
-        {!actionState && inRevealUI && (
+        {!actionState && (
           <div className="action-panel actor-anim" data-animkey={actorAnimKey} style={{ marginTop: 84, marginBottom: 24 }}>
-            <div className="action-info info" style={{ justifyContent:'center' }}><span className="spinner" />All‑In in progress…</div>
+            <div className="action-info info" style={{ justifyContent:'center' }}><span className="spinner" />{inRevealUI ? 'All‑In in progress…' : 'Waiting…'}</div>
             <div className="allin-fill" aria-hidden>
               <span className="dot" /><span className="dot" /><span className="dot" /><span className="dot" /><span className="dot" />
             </div>
