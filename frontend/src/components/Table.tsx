@@ -88,10 +88,15 @@ const [showEmoji, setShowEmoji] = useState(false)
     getLevel().then(setLevel).catch(console.error)
     handState().then(setHand).catch(() => {})
     const lvlId = setInterval(() => { getLevel().then(setLevel).catch(() => {}) }, 5000)
-    // boosted polling early so seats render fast
-    let boostedMs = 400
-    const handId = setInterval(() => { handState().then(setHand).catch(() => {}) }, boostedMs)
-    setTimeout(() => { try { clearInterval(handId) } catch {}; setInterval(() => { handState().then(setHand).catch(() => {}) }, 1500) }, 3500)
+    // Poll hand state with an early boost, then settle to 1500ms; keep handles to avoid leaks across remounts
+    let handPollId: any = null
+    let switchTimeout: any = null
+    const startPoll = (ms: number) => {
+      try { if (handPollId) clearInterval(handPollId) } catch {}
+      handPollId = setInterval(() => { handState().then(setHand).catch(() => {}) }, ms)
+    }
+    startPoll(400)
+    switchTimeout = setTimeout(() => { startPoll(1500) }, 3500)
     // Ensure any stray legacy elements are removed (defensive)
     try { Array.from(document.querySelectorAll('.deck-stack')).forEach((el)=> el.parentElement?.removeChild(el)) } catch {}
     // Keep removing if something injects later
@@ -272,7 +277,7 @@ const [showEmoji, setShowEmoji] = useState(false)
       }
       
     }, (status)=>{ setWsStatus(status) })
-    return () => { clearInterval(lvlId); clearInterval(handId); try { mo && mo.disconnect() } catch {}; ws.close() }
+    return () => { try { clearInterval(lvlId) } catch {}; try { if (handPollId) clearInterval(handPollId) } catch {}; try { if (switchTimeout) clearTimeout(switchTimeout) } catch {}; try { mo && mo.disconnect() } catch {}; ws.close() }
   }, [])
 
   // Live ticker for countdowns (Timebank)
