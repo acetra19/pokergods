@@ -170,6 +170,16 @@ const HU_LEVELS: HUBlindLevel[] = (() => {
   ]
 })()
 const HU_BASE_MS = Date.now()
+function getHUStartLevel(): { smallBlind:number; bigBlind:number } {
+  const envSB = Number(process.env.HU_START_SB || '')
+  const envBB = Number(process.env.HU_START_BB || '')
+  if (Number.isFinite(envSB) && Number.isFinite(envBB) && envSB>0 && envBB>0) {
+    return { smallBlind: envSB, bigBlind: envBB }
+  }
+  const first = HU_LEVELS[0] || { durationSec:120, smallBlind:25, bigBlind:50 }
+  return { smallBlind: first.smallBlind, bigBlind: first.bigBlind }
+}
+
 function getHUCurrentLevel(): { index:number; durationSec:number; smallBlind:number; bigBlind:number } {
   const envSB = Number(process.env.HU_START_SB || '')
   const envBB = Number(process.env.HU_START_BB || '')
@@ -179,12 +189,13 @@ function getHUCurrentLevel(): { index:number; durationSec:number; smallBlind:num
   let elapsed = Math.max(0, Math.floor((Date.now() - HU_BASE_MS)/1000))
   let idx = 0
   for (let i=0;i<HU_LEVELS.length;i++) {
-    const d = HU_LEVELS[i].durationSec || 120
+    const L = HU_LEVELS[i] || { durationSec:120, smallBlind:25, bigBlind:50 }
+    const d = L.durationSec || 120
     if (elapsed < d) { idx = i; break }
     elapsed -= d
     idx = Math.min(HU_LEVELS.length-1, i+1)
   }
-  const L = HU_LEVELS[idx]
+  const L = HU_LEVELS[idx] || { durationSec:120, smallBlind:25, bigBlind:50 }
   return { index: idx, durationSec: L.durationSec, smallBlind: L.smallBlind, bigBlind: L.bigBlind }
 }
 
@@ -224,7 +235,7 @@ function updateElo(winnerId: string, loserId: string) {
 }
 
 app.post("/hand/start", (_req, res) => {
-  const lvl = getFirstBlindLevel();
+  const lvl = getHUStartLevel();
   const seating = demoTournament.getSeating();
   seating.forEach((table) => {
     let eng = tableEngines.get(table.tableId);
@@ -348,7 +359,7 @@ app.post("/hu/bot/join/:wallet", (req, res) => {
   if (st.matchTableId) { res.json(st); return; }
   // Create table with bot and start engine immediately
   const { table } = hu.createBotMatch(wallet, BOT_ID);
-  const lvl = getFirstBlindLevel();
+  const lvl = getHUStartLevel();
   const eng = new GameEngine(table, { sb: lvl.smallBlind, bb: lvl.bigBlind });
   tableEngines.set(table.tableId, eng);
   const serverSeed = randomBytes(32).toString("hex");
@@ -639,7 +650,7 @@ loadProfiles().catch(()=>{})
 function tryStartHuMatch(): boolean {
   const huMatch = hu.popMatch();
   if (!huMatch) return false;
-  const lvl = getFirstBlindLevel();
+  const lvl = getHUStartLevel();
   const eng = new GameEngine(huMatch.table, { sb: lvl.smallBlind, bb: lvl.bigBlind });
   tableEngines.set(huMatch.table.tableId, eng);
   // provably-fair: generate server seed, commit, and pre-install RNG for next shuffle
@@ -715,7 +726,7 @@ setInterval(() => {
   if (AUTO_ADVANCE_ENABLED && view.state === TournamentState.Running) {
     // ensure engines exist for current seating
     if (tableEngines.size === 0) {
-      const lvl = getFirstBlindLevel();
+      const lvl = getHUStartLevel();
       demoTournament.getSeating().forEach((table) => {
         const eng = new GameEngine(table, { sb: lvl.smallBlind, bb: lvl.bigBlind });
         tableEngines.set(table.tableId, eng);
@@ -723,7 +734,7 @@ setInterval(() => {
       });
       broadcastHandStates();
     } else {
-      const lvl = getFirstBlindLevel();
+      const lvl = getHUStartLevel();
       tableEngines.forEach((eng, tableId) => {
         const st = eng.getPublic().street;
         if (st === null) return;
@@ -742,7 +753,7 @@ setInterval(() => {
   }
   // HU tables: if showdown reached, hold briefly before next hand or rematch.
   if (tableEngines.size > 0) {
-          const lvl = getFirstBlindLevel();
+          const lvl = getHUStartLevel();
     const toRequeue: { tableId: string; players: string[]; winners: string[] }[] = [];
     let changed = false;
     tableEngines.forEach((eng, tableId) => {
