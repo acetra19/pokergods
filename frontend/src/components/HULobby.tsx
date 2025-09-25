@@ -95,15 +95,12 @@ export default function HULobby({ wallet, onMatch }: { wallet: string, onMatch: 
             <span>Stakes</span>
             <select value={stakes} onChange={(e)=> setStakes(e.target.value as any)}>
               <option value="50/100">50/100</option>
-              <option value="100/200">100/200</option>
-              <option value="200/400">200/400</option>
             </select>
           </div>
           <div style={{ display:'flex', gap:6, alignItems:'center' }}>
             <span>Speed</span>
             <select value={speed} onChange={(e)=> setSpeed(e.target.value as any)}>
               <option value="normal">Normal</option>
-              <option value="fast">Fast</option>
             </select>
           </div>
           <div style={{ marginLeft:'auto', display:'flex', gap:8, alignItems:'center' }}>
