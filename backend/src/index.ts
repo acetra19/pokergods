@@ -876,13 +876,17 @@ setInterval(() => {
               s.losses += 1; s.matches += 1; huLeague.set(l, s)
             })
             if (players.length===2) {
-              const a = players[0], b = players[1]
-              const aMap = huVs.get(a) || new Map(); const bMap = huVs.get(b) || new Map();
-              const aVs = aMap.get(b) || { wins:0, losses:0, matches:0 }
-              const bVs = bMap.get(a) || { wins:0, losses:0, matches:0 }
-              aVs.matches += 1; bVs.matches += 1
-              if (winners.includes(a)) { aVs.wins += 1; bVs.losses += 1 } else if (winners.includes(b)) { bVs.wins += 1; aVs.losses += 1 }
-              aMap.set(b, aVs); bMap.set(a, bVs); huVs.set(a, aMap); huVs.set(b, bMap)
+              const aId = String(players[0] || '')
+              const bId = String(players[1] || '')
+              if (aId && bId) {
+                const aMap = huVs.get(aId) || new Map<string, { wins:number; losses:number; matches:number }>();
+                const bMap = huVs.get(bId) || new Map<string, { wins:number; losses:number; matches:number }>();
+                const aVs = aMap.get(bId) || { wins:0, losses:0, matches:0 }
+                const bVs = bMap.get(aId) || { wins:0, losses:0, matches:0 }
+                aVs.matches += 1; bVs.matches += 1
+                if (winners.includes(aId)) { aVs.wins += 1; bVs.losses += 1 } else if (winners.includes(bId)) { bVs.wins += 1; aVs.losses += 1 }
+                aMap.set(bId, aVs); bMap.set(aId, bVs); huVs.set(aId, aMap); huVs.set(bId, bMap)
+              }
             }
           } catch {}
         } else {
