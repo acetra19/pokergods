@@ -29,6 +29,20 @@ export default function AuthPanel({ onLogin }: { onLogin: (p: { username: string
     } finally { setLoading(false) }
   }
 
+  const isMobile = useMemo(()=>{
+    try { return /Android|iPhone|iPad|iPod/i.test(navigator.userAgent) } catch { return false }
+  }, [])
+
+  const pasteFromClipboard = async () => {
+    try {
+      const txt = await navigator.clipboard.readText()
+      if (txt && txt.trim()) setWallet(txt.trim())
+      else setHint('Clipboard is empty')
+    } catch {
+      setHint('Clipboard not accessible. Please paste manually.')
+    }
+  }
+
   return (
     <div style={{ border:'1px solid rgba(255,213,79,0.25)', padding:12, borderRadius:10, background:'rgba(26,8,48,0.95)' }}>
       <h3>Login</h3>
@@ -36,7 +50,25 @@ export default function AuthPanel({ onLogin }: { onLogin: (p: { username: string
         {/* Wallet section first */}
         <label>Wallet</label>
         <div style={{ display:'flex', gap:8 }}>
-          <input style={{ flex:1 }} value={wallet} onChange={(e)=> setWallet(e.target.value)} placeholder="Solana address" />
+          <input
+            style={{ flex:1 }}
+            value={wallet}
+            onChange={(e)=> setWallet(e.target.value)}
+            placeholder="Solana address"
+            inputMode="text"
+            autoComplete="off"
+            autoCorrect="off"
+            autoCapitalize="none"
+            spellCheck={false}
+          />
+          {isMobile && (
+            <button
+              onClick={pasteFromClipboard}
+              disabled={loading}
+              title="Paste from clipboard"
+              style={{ background:'#eee', color:'#1a1a1a', border:'1px solid rgba(0,0,0,0.2)' }}
+            >Paste</button>
+          )}
           <button
             onClick={scan}
             disabled={!wallet || loading}

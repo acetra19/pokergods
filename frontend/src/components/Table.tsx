@@ -182,6 +182,24 @@ const [showEmoji, setShowEmoji] = useState(false)
         // sound hooks + floating commentary
         if (mine) {
           const st = mine
+          // Failsafe: sobald echter Showdown mit Winners sichtbar ist, Summary-Daten in Session speichern
+          try {
+            if (st.street === 'showdown' && Array.isArray(st.lastWinners) && st.lastWinners.length > 0 && Array.isArray(st.showdownInfo) && st.showdownInfo.length > 0) {
+              const winnersEnriched = (st.lastWinners || []).map((w:any)=> ({ ...w, displayName: nameOf(w.playerId) }))
+              const showdownEnriched = (st.showdownInfo || []).map((s:any)=> ({ ...s, displayName: nameOf(s.playerId) }))
+              const holesByPlayer: Record<string, any[]|null> = {}
+              try { (st.players||[]).forEach((p:any)=> { holesByPlayer[p.playerId] = p.hole || null }) } catch {}
+              sessionStorage.setItem('pg_last_match', JSON.stringify({
+                tableId: st.tableId,
+                handNumber: st.handNumber,
+                community: st.community || [],
+                holesByPlayer,
+                winners: winnersEnriched,
+                showdownInfo: showdownEnriched,
+                you: wallet
+              }))
+            }
+          } catch {}
           if (st.street === 'preflop' && st.community?.length === 0) {
             playSound('deal', () => { resumeAudio(); playDeal() })
             addFloat('New Hand', 38, 28)
@@ -232,6 +250,12 @@ const [showEmoji, setShowEmoji] = useState(false)
             }
           }
         } catch {}
+      }
+      if (m?.type === 'tournament' && m.payload?.event === 'hu_postmatch') {
+        // Falls ausnahmsweise kein Overlay sichtbar wurde, gehe direkt zur Summary mit der zuletzt gespeicherten Hand
+        if (overlayStateRef.current !== 'visible') {
+          try { window.location.hash = '#/summary' } catch {}
+        }
       }
       if ((m as any)?.type === 'emoji') {
         try {
