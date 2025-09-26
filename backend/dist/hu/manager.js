@@ -3,20 +3,27 @@ export class HUManager {
         this.queue = [];
         this.walletToTable = new Map();
         this.nextId = 1;
+        this.onlineSet = new Set();
+        this.maxOnline = Number(process.env.HU_MAX_ONLINE || 128);
     }
     join(wallet) {
+        this.onlineSet.add(wallet);
         if (this.walletToTable.has(wallet)) {
-            return { queueSize: this.queue.length, matchTableId: this.walletToTable.get(wallet) };
+            return { queueSize: this.queue.length, matchTableId: this.walletToTable.get(wallet), online: this.onlineSet.size };
+        }
+        if (this.onlineSet.size > this.maxOnline) {
+            return { queueSize: this.queue.length, matchTableId: undefined, online: this.onlineSet.size };
         }
         if (!this.queue.includes(wallet)) {
             this.queue.push(wallet);
         }
-        return { queueSize: this.queue.length };
+        return { queueSize: this.queue.length, online: this.onlineSet.size };
     }
     leave(wallet) {
         this.queue = this.queue.filter((w) => w !== wallet);
         const tableId = this.walletToTable.get(wallet);
-        return { queueSize: this.queue.length, matchTableId: tableId };
+        this.onlineSet.delete(wallet);
+        return { queueSize: this.queue.length, matchTableId: tableId, online: this.onlineSet.size };
     }
     popMatch() {
         if (this.queue.length < 2)
@@ -56,13 +63,14 @@ export class HUManager {
     }
     status(wallet) {
         const tableId = wallet ? this.walletToTable.get(wallet) : undefined;
-        return { queueSize: this.queue.length, matchTableId: tableId };
+        return { queueSize: this.queue.length, matchTableId: tableId, online: this.onlineSet.size };
     }
     unmap(wallet) {
         this.walletToTable.delete(wallet);
+        this.onlineSet.delete(wallet);
     }
     unmapMany(wallets) {
-        wallets.forEach((w) => this.walletToTable.delete(w));
+        wallets.forEach((w) => { this.walletToTable.delete(w); this.onlineSet.delete(w); });
     }
 }
 //# sourceMappingURL=manager.js.map

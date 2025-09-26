@@ -13,11 +13,39 @@ import { promises as fs } from "node:fs";
 import path from "node:path";
 const app = express();
 app.use(cors());
-app.use(express.json());
+// JSON-Parser nur noch gezielt pro Route einsetzen, um Parse-Fehler bei Nicht‑JSON‑Bodies zu vermeiden
+// Zentrales Error‑Handling für JSON‑Parse‑Fehler
+app.use((err, req, res, next) => {
+    try {
+        const isJsonParse = err && (err.type === 'entity.parse.failed' || err instanceof SyntaxError);
+        if (isJsonParse) {
+            try {
+                diag('invalid_json', { path: req.path, method: req.method });
+            }
+            catch { }
+            res.status(400).json({ ok: false, error: 'invalid json' });
+            return;
+        }
+    }
+    catch { }
+    next(err);
+});
 app.use('/avatars', express.static(path.join(process.cwd(), 'backend', 'data', 'avatars')));
 app.get("/health", (_req, res) => {
     res.json({ ok: true });
 });
+const DIAG_MAX = 500;
+const diagBuf = [];
+function diag(tag, data) {
+    try {
+        diagBuf.push({ ts: Date.now(), tag, data });
+        while (diagBuf.length > DIAG_MAX)
+            diagBuf.shift();
+    }
+    catch { }
+}
+app.get('/diag/logs', (_req, res) => { res.json({ ok: true, logs: diagBuf }); });
+app.post('/diag/log', express.json(), (req, res) => { diag(String(req.body?.tag || 'client'), req.body?.data || {}); res.json({ ok: true }); });
 // --- Admin auth (JWT‑style HMAC token; beta, no external deps) ---
 const ADMIN_USER = process.env.ADMIN_USER || 'admin';
 const ADMIN_PASS = process.env.ADMIN_PASS || 'pokergod69';
@@ -117,7 +145,7 @@ function adminAuth(req, res, next) {
         res.status(401).json({ ok: false, error: 'unauthorized' });
     }
 }
-app.post('/auth/admin/login', (req, res) => {
+app.post('/auth/admin/login', express.json(), (req, res) => {
     const { username, password } = (req.body || {});
     if (!username || !password) {
         res.status(400).json({ ok: false, error: 'missing credentials' });
@@ -154,8 +182,54 @@ app.post("/register/:wallet", (req, res) => {
 app.get("/seating", (_req, res) => {
     res.json(demoTournament.getSeating());
 });
+const HU_LEVELS = (() => {
+    try {
+        const v = demoTournament.getPublicView();
+        if (v && Array.isArray(v.blindLevels) && v.blindLevels.length) {
+            return v.blindLevels.map((b) => ({ durationSec: Number(b.durationSec || 120), smallBlind: Number(b.smallBlind || 25), bigBlind: Number(b.bigBlind || 50) }));
+        }
+    }
+    catch { }
+    return [
+        { durationSec: 120, smallBlind: 25, bigBlind: 50 },
+        { durationSec: 120, smallBlind: 50, bigBlind: 100 },
+        { durationSec: 120, smallBlind: 100, bigBlind: 200 },
+    ];
+})();
+const HU_BASE_MS = Date.now();
+function getHUStartLevel() {
+    const envSB = Number(process.env.HU_START_SB || '');
+    const envBB = Number(process.env.HU_START_BB || '');
+    if (Number.isFinite(envSB) && Number.isFinite(envBB) && envSB > 0 && envBB > 0) {
+        return { smallBlind: envSB, bigBlind: envBB };
+    }
+    const first = HU_LEVELS[0] || { durationSec: 120, smallBlind: 25, bigBlind: 50 };
+    return { smallBlind: first.smallBlind, bigBlind: first.bigBlind };
+}
+function getHUCurrentLevel() {
+    const envSB = Number(process.env.HU_START_SB || '');
+    const envBB = Number(process.env.HU_START_BB || '');
+    if (Number.isFinite(envSB) && Number.isFinite(envBB) && envSB > 0 && envBB > 0) {
+        return { index: 0, durationSec: HU_LEVELS[0]?.durationSec || 120, smallBlind: envSB, bigBlind: envBB };
+    }
+    let elapsed = Math.max(0, Math.floor((Date.now() - HU_BASE_MS) / 1000));
+    let idx = 0;
+    for (let i = 0; i < HU_LEVELS.length; i++) {
+        const L = HU_LEVELS[i] || { durationSec: 120, smallBlind: 25, bigBlind: 50 };
+        const d = L.durationSec || 120;
+        if (elapsed < d) {
+            idx = i;
+            break;
+        }
+        elapsed -= d;
+        idx = Math.min(HU_LEVELS.length - 1, i + 1);
+    }
+    const L = HU_LEVELS[idx] || { durationSec: 120, smallBlind: 25, bigBlind: 50 };
+    return { index: idx, durationSec: L.durationSec, smallBlind: L.smallBlind, bigBlind: L.bigBlind };
+}
 app.get("/level", (_req, res) => {
-    res.json(demoTournament.getCurrentLevel());
+    const L = getHUCurrentLevel();
+    res.json(L);
 });
 app.post("/admin/reset", adminAuth, (_req, res) => {
     demoTournament.reset(Date.now() + 5 * 60_000);
@@ -167,11 +241,15 @@ app.post("/admin/startNow", adminAuth, (_req, res) => {
 });
 // Simple per-table game engines map
 const tableEngines = new Map();
+const huBlindsByTable = new Map();
 const hu = new HUManager();
 // Simple in-memory leaderboard for HU sessions (with persistence)
 const huLeaderboard = new Map();
 // Simple in-memory ELO for HU (with persistence)
 const huElo = new Map();
+// League table and head-to-head stats (in-memory; reset on restart)
+const huLeague = new Map();
+const huVs = new Map();
 const getElo = (pid) => huElo.get(pid) ?? 1500;
 const setElo = (pid, r) => { huElo.set(pid, Math.round(r)); };
 function updateElo(winnerId, loserId) {
@@ -184,14 +262,15 @@ function updateElo(winnerId, loserId) {
     setElo(loserId, Rb + K * (0 - Eb));
     persistHuDataDebounced();
 }
-app.post("/hand/start", (_req, res) => {
-    const lvl = demoTournament.getCurrentLevel();
+app.post("/hand/start", (req, res) => {
+    const lvl = getHUStartLevel();
     const seating = demoTournament.getSeating();
     seating.forEach((table) => {
         let eng = tableEngines.get(table.tableId);
         if (!eng) {
             eng = new GameEngine(table, { sb: lvl.smallBlind, bb: lvl.bigBlind });
             tableEngines.set(table.tableId, eng);
+            huBlindsByTable.set(table.tableId, { sb: lvl.smallBlind, bb: lvl.bigBlind });
         }
         // set a fresh provably-fair seed per hand
         const serverSeed = randomBytes(32).toString("hex");
@@ -205,7 +284,7 @@ app.post("/hand/start", (_req, res) => {
     broadcastActionStates();
     res.json({ ok: true });
 });
-app.post("/hand/advance", (_req, res) => {
+app.post("/hand/advance", (req, res) => {
     tableEngines.forEach((eng) => eng.advanceStreet());
     broadcast({ type: "tournament", payload: { event: "hand_advance" } });
     broadcastHandStates();
@@ -228,6 +307,10 @@ app.get("/hand/history", (req, res) => {
     handHistoryByTable.forEach((list) => { merged.push(...list); });
     merged.sort((a, b) => b.ts - a.ts);
     res.json(merged.slice(0, 100));
+});
+// Session stats endpoint
+app.get('/hu/sessionStats', (_req, res) => {
+    res.json({ ok: true, topHand: sessionStats.topHand, badBeat: sessionStats.badBeat });
 });
 app.post("/hand/action", express.json(), (req, res) => {
     const { tableId, playerId, type, amount } = req.body ?? {};
@@ -310,9 +393,10 @@ app.post("/hu/bot/join/:wallet", (req, res) => {
     }
     // Create table with bot and start engine immediately
     const { table } = hu.createBotMatch(wallet, BOT_ID);
-    const lvl = demoTournament.getCurrentLevel();
+    const lvl = getHUStartLevel();
     const eng = new GameEngine(table, { sb: lvl.smallBlind, bb: lvl.bigBlind });
     tableEngines.set(table.tableId, eng);
+    huBlindsByTable.set(table.tableId, { sb: lvl.smallBlind, bb: lvl.bigBlind });
     const serverSeed = randomBytes(32).toString("hex");
     const commit = createHash("sha256").update(serverSeed).digest("hex");
     fairnessByTable.set(table.tableId, { commit, serverSeed });
@@ -353,6 +437,23 @@ app.get("/hu/elo", (_req, res) => {
     const rows = Array.from(huElo.entries()).map(([playerId, rating]) => ({ playerId, rating }));
     rows.sort((a, b) => b.rating - a.rating);
     res.json(rows.slice(0, 50));
+});
+// League endpoints
+app.get('/hu/league', (_req, res) => {
+    const rows = Array.from(huLeague.entries()).map(([playerId, s]) => ({ playerId, displayName: resolveDisplayName(playerId), ...s }));
+    rows.sort((a, b) => b.points - a.points || b.wins - a.wins || a.losses - b.losses);
+    res.json(rows);
+});
+app.get('/hu/league/vs', (req, res) => {
+    const u = String(req.query.user || '');
+    const row = huVs.get(u);
+    if (!row) {
+        res.json([]);
+        return;
+    }
+    const out = Array.from(row.entries()).map(([opp, s]) => ({ opponent: resolveDisplayName(opp), opponentId: opp, ...s }));
+    out.sort((a, b) => b.wins - a.wins || a.losses - b.losses);
+    res.json(out);
 });
 // --- Solana Eligibility (SPL-Token balance) ---
 const SOL_RPC_URL = process.env.SOLANA_RPC_URL || "https://api.mainnet-beta.solana.com";
@@ -444,12 +545,60 @@ app.get("/hu/elo", (_req, res) => {
 });
 const server = http.createServer(app);
 const wss = new WebSocketServer({ server });
+// Track online wallets (any page with an active WS connection and identify)
+const wsToWallet = new Map();
+const walletConnCount = new Map();
+function incOnline(wallet) {
+    const n = (walletConnCount.get(wallet) ?? 0) + 1;
+    walletConnCount.set(wallet, n);
+}
+function decOnline(wallet) {
+    const n = (walletConnCount.get(wallet) ?? 0) - 1;
+    if (n <= 0)
+        walletConnCount.delete(wallet);
+    else
+        walletConnCount.set(wallet, n);
+}
+function onlineCount() { return walletConnCount.size; }
 wss.on("connection", (ws) => {
     const welcome = { type: "welcome", serverTime: Date.now() };
     ws.send(JSON.stringify(welcome));
     ws.on("message", (raw) => {
-        const echo = { type: "echo", payload: raw.toString() };
-        ws.send(JSON.stringify(echo));
+        try {
+            const txt = raw.toString();
+            let obj = null;
+            try {
+                obj = JSON.parse(txt);
+            }
+            catch { }
+            if (obj && obj.type === 'identify' && typeof obj.wallet === 'string') {
+                const prev = wsToWallet.get(ws);
+                if (prev && prev !== obj.wallet) {
+                    decOnline(prev);
+                }
+                wsToWallet.set(ws, obj.wallet);
+                incOnline(obj.wallet);
+                return;
+            }
+            if (obj && obj.type === 'emoji' && typeof obj.tableId === 'string' && typeof obj.emoji === 'string') {
+                const from = wsToWallet.get(ws) || '';
+                broadcast({ type: 'emoji', payload: { tableId: obj.tableId, from, emoji: obj.emoji, ts: Date.now() } });
+                return;
+            }
+            const echo = { type: "echo", payload: txt };
+            ws.send(JSON.stringify(echo));
+        }
+        catch { }
+    });
+    ws.on('close', () => {
+        try {
+            const w = wsToWallet.get(ws);
+            if (w) {
+                decOnline(w);
+                wsToWallet.delete(ws);
+            }
+        }
+        catch { }
     });
 });
 // Broadcast tournament updates
@@ -473,10 +622,21 @@ setInterval(() => {
 }, 1000);
 // In-memory hand history store (recent)
 const handHistoryByTable = new Map();
+const sessionStats = { topHand: null, badBeat: null };
+const CATEGORY_ORDER = [
+    'High Card', 'Pair', 'Two Pair', 'Three of a Kind', 'Straight', 'Flush', 'Full House', 'Four of a Kind', 'Straight Flush', 'Royal Flush'
+];
+const catRank = (c) => {
+    const i = CATEGORY_ORDER.findIndex(x => x.toLowerCase() === String(c || '').toLowerCase());
+    return i >= 0 ? i : -1;
+};
 // Broadcast current hand states to clients
 const broadcastHandStates = () => {
     const states = Array.from(tableEngines.values()).map((e) => e.getPublic());
-    broadcast({ type: "tournament", payload: { event: "hand_state", states } });
+    const blindsByTable = {};
+    tableEngines.forEach((_e, tid) => { const b = huBlindsByTable.get(tid); if (b)
+        blindsByTable[tid] = b; });
+    broadcast({ type: "tournament", payload: { event: "hand_state", states, blindsByTable } });
 };
 const broadcastActionStates = () => {
     const states = Array.from(tableEngines.values()).map((e) => e.getActionState());
@@ -551,9 +711,10 @@ function tryStartHuMatch() {
     const huMatch = hu.popMatch();
     if (!huMatch)
         return false;
-    const lvl = demoTournament.getCurrentLevel();
+    const lvl = getHUStartLevel();
     const eng = new GameEngine(huMatch.table, { sb: lvl.smallBlind, bb: lvl.bigBlind });
     tableEngines.set(huMatch.table.tableId, eng);
+    huBlindsByTable.set(huMatch.table.tableId, { sb: lvl.smallBlind, bb: lvl.bigBlind });
     // provably-fair: generate server seed, commit, and pre-install RNG for next shuffle
     const serverSeed = randomBytes(32).toString("hex");
     const commit = createHash("sha256").update(serverSeed).digest("hex");
@@ -642,7 +803,7 @@ setInterval(() => {
     if (AUTO_ADVANCE_ENABLED && view.state === TournamentState.Running) {
         // ensure engines exist for current seating
         if (tableEngines.size === 0) {
-            const lvl = demoTournament.getCurrentLevel();
+            const lvl = getHUStartLevel();
             demoTournament.getSeating().forEach((table) => {
                 const eng = new GameEngine(table, { sb: lvl.smallBlind, bb: lvl.bigBlind });
                 tableEngines.set(table.tableId, eng);
@@ -651,7 +812,7 @@ setInterval(() => {
             broadcastHandStates();
         }
         else {
-            const lvl = demoTournament.getCurrentLevel();
+            const lvl = getHUStartLevel();
             tableEngines.forEach((eng, tableId) => {
                 const st = eng.getPublic().street;
                 if (st === null)
@@ -672,7 +833,7 @@ setInterval(() => {
     }
     // HU tables: if showdown reached, hold briefly before next hand or rematch.
     if (tableEngines.size > 0) {
-        const lvl = demoTournament.getCurrentLevel();
+        const lvl = getHUStartLevel();
         const toRequeue = [];
         let changed = false;
         tableEngines.forEach((eng, tableId) => {
@@ -687,8 +848,11 @@ setInterval(() => {
                     // Start hold window. Use shorter hold for fold-ends (no showdown reveal),
                     // longer hold only when real showdown info is present.
                     const hasShowdownReveal = Array.isArray(pub.showdownInfo) && pub.showdownInfo.length > 0;
-                    const baseHoldMs = hasShowdownReveal ? 6000 : 600;
+                    // Client Reveal-Flow (All-In): Flop/Turn/River pacing + trace dauert ~6.5s
+                    // Halte deshalb Showdown etwas länger, damit der Client fertig ist
+                    const baseHoldMs = hasShowdownReveal ? 7500 : 600;
                     postShowdownHoldUntilMs.set(tableId, now + baseHoldMs);
+                    diag('showdown_hold_start', { tableId, handNumber: pub.handNumber, baseHoldMs, hasShowdownReveal });
                     return; // keep broadcasting current showdown state
                 }
                 if (now < holdUntil) {
@@ -696,6 +860,7 @@ setInterval(() => {
                 }
                 // hold elapsed; proceed and clear
                 postShowdownHoldUntilMs.delete(tableId);
+                diag('showdown_hold_end', { tableId, handNumber: pub.handNumber });
                 // reveal fairness info for the completed hand (if present)
                 try {
                     const fair = fairnessByTable.get(tableId);
@@ -723,11 +888,85 @@ setInterval(() => {
                     handHistoryByTable.set(tableId, list);
                 }
                 catch { }
+                // Update session stats (after history append)
+                try {
+                    const sInfo = Array.isArray(pub.showdownInfo) ? pub.showdownInfo : [];
+                    if (sInfo.length) {
+                        // Top Hand
+                        const best = sInfo.slice().sort((a, b) => catRank(b.category) - catRank(a.category))[0];
+                        if (best) {
+                            const th = sessionStats.topHand;
+                            if (!th || catRank(best.category) > catRank(th.category)) {
+                                sessionStats.topHand = { playerId: best.playerId, displayName: resolveDisplayName(best.playerId), category: best.category, tableId, handNumber: pub.handNumber, ts: Date.now() };
+                                broadcast({ type: 'tournament', payload: { event: 'session_stats', topHand: sessionStats.topHand, badBeat: sessionStats.badBeat } });
+                            }
+                        }
+                        // Bad Beat: strongest losing hand (no threshold; always pick the strongest losing hand, tiebreak by larger pot)
+                        const winnerIds = new Set((pub.lastWinners || []).map((w) => w.playerId));
+                        const losers = sInfo.filter(s => !winnerIds.has(s.playerId));
+                        if (losers.length) {
+                            const worst = losers.slice().sort((a, b) => catRank(b.category) - catRank(a.category))[0];
+                            const win = (pub.lastWinners || [])[0];
+                            const winCat = (sInfo.find(s => s.playerId === win?.playerId)?.category) || '';
+                            const bb = { loserId: worst.playerId, displayName: resolveDisplayName(worst.playerId), category: worst.category, winnerId: win?.playerId || '', winnerDisplayName: resolveDisplayName(win?.playerId || ''), winnerCategory: winCat, tableId, handNumber: pub.handNumber, pot: pub.pot, ts: Date.now() };
+                            const prev = sessionStats.badBeat;
+                            const better = !prev || catRank(worst.category) > catRank(prev.category) || (catRank(worst.category) === catRank(prev.category) && ((pub.pot || 0) > (prev.pot || 0)));
+                            if (better) {
+                                sessionStats.badBeat = bb;
+                                broadcast({ type: 'tournament', payload: { event: 'session_stats', topHand: sessionStats.topHand, badBeat: sessionStats.badBeat } });
+                            }
+                        }
+                    }
+                }
+                catch { }
                 const players = pub.players.map((p) => p.playerId);
                 const busted = pub.players.filter((p) => p.busted || p.chips <= 0).map((p) => p.playerId);
                 if (busted.length > 0) {
                     const winners = (pub.lastWinners ?? []).map((w) => w.playerId);
                     toRequeue.push({ tableId, players, winners });
+                    diag('match_end', { tableId, handNumber: pub.handNumber, winners });
+                    // Update league and head-to-head
+                    try {
+                        const losers = players.filter(p => !winners.includes(p));
+                        winners.forEach(w => {
+                            const s = huLeague.get(w) || { wins: 0, losses: 0, matches: 0, points: 0 };
+                            s.wins += 1;
+                            s.matches += 1;
+                            s.points += 3;
+                            huLeague.set(w, s);
+                        });
+                        losers.forEach(l => {
+                            const s = huLeague.get(l) || { wins: 0, losses: 0, matches: 0, points: 0 };
+                            s.losses += 1;
+                            s.matches += 1;
+                            huLeague.set(l, s);
+                        });
+                        if (players.length === 2) {
+                            const aId = String(players[0] || '');
+                            const bId = String(players[1] || '');
+                            if (aId && bId) {
+                                const aMap = huVs.get(aId) || new Map();
+                                const bMap = huVs.get(bId) || new Map();
+                                const aVs = aMap.get(bId) || { wins: 0, losses: 0, matches: 0 };
+                                const bVs = bMap.get(aId) || { wins: 0, losses: 0, matches: 0 };
+                                aVs.matches += 1;
+                                bVs.matches += 1;
+                                if (winners.includes(aId)) {
+                                    aVs.wins += 1;
+                                    bVs.losses += 1;
+                                }
+                                else if (winners.includes(bId)) {
+                                    bVs.wins += 1;
+                                    aVs.losses += 1;
+                                }
+                                aMap.set(bId, aVs);
+                                bMap.set(aId, bVs);
+                                huVs.set(aId, aMap);
+                                huVs.set(bId, bMap);
+                            }
+                        }
+                    }
+                    catch { }
                 }
                 else {
                     // same match continues: start next hand
@@ -736,6 +975,7 @@ setInterval(() => {
                     fairnessByTable.set(tableId, { commit, serverSeed });
                     eng.setDeckRng(seedToRng(serverSeed));
                     eng.nextHand({ sb: lvl.smallBlind, bb: lvl.bigBlind });
+                    diag('next_hand', { tableId });
                     changed = true;
                 }
             }

@@ -19,7 +19,19 @@ declare global {
 
 const app = express();
 app.use(cors());
-app.use(express.json());
+// JSON-Parser nur noch gezielt pro Route einsetzen, um Parse-Fehler bei Nicht‑JSON‑Bodies zu vermeiden
+// Zentrales Error‑Handling für JSON‑Parse‑Fehler
+app.use((err: any, req: express.Request, res: express.Response, next: express.NextFunction) => {
+  try {
+    const isJsonParse = err && (err.type === 'entity.parse.failed' || err instanceof SyntaxError);
+    if (isJsonParse) {
+      try { diag('invalid_json', { path: req.path, method: req.method }); } catch {}
+      res.status(400).json({ ok:false, error:'invalid json' });
+      return;
+    }
+  } catch {}
+  next(err);
+});
 app.use('/avatars', express.static(path.join(process.cwd(), 'backend', 'data', 'avatars')));
 
 app.get("/health", (_req, res) => {
@@ -118,7 +130,7 @@ function adminAuth(req: express.Request, res: express.Response, next: express.Ne
   } catch { res.status(401).json({ ok:false, error:'unauthorized' }); }
 }
 
-app.post('/auth/admin/login', (req, res) => {
+app.post('/auth/admin/login', express.json(), (req, res) => {
   const { username, password } = (req.body || {}) as { username?: string; password?: string };
   if (!username || !password) { res.status(400).json({ ok:false, error:'missing credentials' }); return; }
   if (username !== ADMIN_USER || password !== ADMIN_PASS) { res.status(401).json({ ok:false, error:'invalid credentials' }); return; }
@@ -238,7 +250,7 @@ function updateElo(winnerId: string, loserId: string) {
   persistHuDataDebounced();
 }
 
-app.post("/hand/start", (_req, res) => {
+app.post("/hand/start", (req, res) => {
   const lvl = getHUStartLevel();
   const seating = demoTournament.getSeating();
   seating.forEach((table) => {
@@ -261,7 +273,7 @@ app.post("/hand/start", (_req, res) => {
   res.json({ ok: true });
 });
 
-app.post("/hand/advance", (_req, res) => {
+app.post("/hand/advance", (req, res) => {
   tableEngines.forEach((eng) => eng.advanceStreet());
   broadcast({ type: "tournament", payload: { event: "hand_advance" } });
   broadcastHandStates();
