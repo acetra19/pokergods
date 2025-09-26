@@ -403,11 +403,11 @@ app.get("/hu/bot/status/:wallet", (req, res) => {
 
 app.get("/hu/status", (_req, res) => {
   const s = hu.status(undefined);
-  res.json(s);
+  res.json({ ...s, online: onlineCount() });
 });
 app.get("/hu/status/:wallet", (req, res) => {
   const s = hu.status(req.params.wallet);
-  res.json(s);
+  res.json({ ...s, online: onlineCount() });
 });
 
 app.get("/hu/leaderboard", (_req, res) => {

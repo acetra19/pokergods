@@ -37,7 +37,7 @@ export default function ProfilePanel({ wallet }: { wallet: string }){
         <label>Wallet</label>
         <input value={wallet} readOnly />
         <label>Username</label>
-        <input value={username} onChange={(e)=> setUsername(e.target.value)} placeholder="your display name" />
+        <input value={username} readOnly placeholder="your display name" />
         <label>Avatar</label>
         <div style={{ display:'flex', flexDirection:'column', gap:6 }}>
           <input type="file" accept="image/*" onChange={async (e)=>{
