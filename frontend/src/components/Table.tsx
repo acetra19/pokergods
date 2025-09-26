@@ -1473,12 +1473,13 @@ const [showEmoji, setShowEmoji] = useState(false)
                   {!isBet && <span><b>Min raise:</b> {actionState.currentBet + actionState.minRaise}</span>}
                 </div>
               )}
-              {(imAllIn || pendingAllIn) && (
+              {imAllIn && (
                 <div className="allin-fill" aria-hidden>
                   <span className="dot" /><span className="dot" /><span className="dot" /><span className="dot" /><span className="dot" />
                 </div>
               )}
               {canAct ? (
+              <>
               <div className="action-row">
                 {!imAllIn && actionState.legalActions.includes('fold') && (
                   <button className="btn btn-danger" disabled={!canAct} onClick={async ()=>{ try { await handAction({ tableId: renderTables[0].tableId, playerId: actor, type:'fold' }); setSizingAmt(null) } catch(e:any){ alert(e?.message||'Action error') } }}>Fold</button>
@@ -1531,6 +1532,13 @@ const [showEmoji, setShowEmoji] = useState(false)
                   </form>
                 )}
               </div>
+              {/* Dots BELOW buttons when opponent is all-in (passive all-in) */}
+              {(!imAllIn && pendingAllIn) ? (
+                <div className="allin-fill" aria-hidden>
+                  <span className="dot" /><span className="dot" /><span className="dot" /><span className="dot" /><span className="dot" />
+                </div>
+              ) : null}
+              </>
               ) : (
                   imAllIn ? null : (
                     <div className="waiting-block" style={{ width:'100%' }}>
