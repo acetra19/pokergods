@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useRef, useState, memo, useCallback, type CSSProperties } from 'react'
 import pgLogo from '../images/pokergods.png'
+import pgCover from '../images/pokergodscover.png'
 import type { TableState, BlindLevel } from '../types'
 import { getSeating, handState, handActionState, handAction, connectWS, getProfile, diagLog } from '../api'
 import { formatCardLabel } from '../utils/cards'
@@ -1244,7 +1245,14 @@ const [showEmoji, setShowEmoji] = useState(false)
           </div>
         </div>
       </div>
-      {renderTables.length === 0 && <p>No seating yet.</p>}
+      {renderTables.length === 0 && (
+        <div style={{ textAlign:'center', margin:'12px 0 0' }}>
+          <p>No seating yet.</p>
+          <div style={{ marginTop:10, display:'flex', justifyContent:'center' }}>
+            <img src={pgCover} alt="Pokergods cover" style={{ maxWidth: 540, width:'90%', borderRadius: 12, border:'1px solid rgba(255,213,79,0.25)', boxShadow:'0 8px 24px rgba(0,0,0,0.35)' }} />
+          </div>
+        </div>
+      )}
       {renderTables.map((t) => (
         <div key={t.tableId} className="table-card" style={{ border: '1px solid #ddd', padding: 12, marginBottom: 12 }}>
           <h3>{t.tableId}</h3>
