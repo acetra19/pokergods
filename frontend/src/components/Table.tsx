@@ -18,7 +18,7 @@ const SOUND_COOLDOWN_MS: Record<string, number> = {
 
 const soundLastPlayed: Record<string, number> = {}
 
-function playSound(key: keyof typeof SOUND_COOLDOWN_MS, fn: () => void) {
+function playSoundCore(key: keyof typeof SOUND_COOLDOWN_MS, fn: () => void) {
   const now = Date.now()
   const last = soundLastPlayed[key] ?? 0
   if (now - last < SOUND_COOLDOWN_MS[key]) return
@@ -40,6 +40,7 @@ export default function TableView({ wallet, tableId }: { wallet?: string, tableI
   const [actorAnimKey, setActorAnimKey] = useState<number>(0)
   const [, setWsStatus] = useState<'init'|'open'|'retrying'|'closed'>('init')
   const [riverPulse, setRiverPulse] = useState<number>(0)
+  const audioAllowedRef = useRef<boolean>(false)
   const [overlayCooldown, setOverlayCooldown] = useState<boolean>(false)
   const [seatBloom, setSeatBloom] = useState<Record<string, number>>({})
 const [showEmoji, setShowEmoji] = useState(false)
@@ -189,6 +190,7 @@ const [showEmoji, setShowEmoji] = useState(false)
               return seated || spectatingChosen
             } catch { return false }
           })()
+          try { audioAllowedRef.current = !!allowAudio } catch {}
           // Failsafe: sobald echter Showdown mit Winners sichtbar ist, Summary-Daten in Session speichern (nur Teilnehmer)
           try {
             const amParticipant = !!(st.players && Array.isArray(st.players) && st.players.some((p:any)=> p?.playerId === wallet))
@@ -210,19 +212,19 @@ const [showEmoji, setShowEmoji] = useState(false)
           } catch {}
           if (allowAudio) {
             if (st.street === 'preflop' && st.community?.length === 0) {
-              playSound('deal', () => { resumeAudio(); playDeal() })
+              if (audioAllowedRef.current) playSoundCore('deal', () => { resumeAudio(); playDeal() })
               addFloat('New Hand', 38, 28)
             }
             if (st.street === 'flop' && st.community?.length === 3) {
-              playSound('deal', () => playDeal())
+              if (audioAllowedRef.current) playSoundCore('deal', () => playDeal())
               addFloat('Flop', 38, 28)
             }
             if (st.street === 'turn' && st.community?.length === 4) {
-              playSound('deal', () => playDeal())
+              if (audioAllowedRef.current) playSoundCore('deal', () => playDeal())
               addFloat('Turn', 38, 28)
             }
             if (st.street === 'river' && st.community?.length === 5) {
-              playSound('deal', () => playDeal())
+              if (audioAllowedRef.current) playSoundCore('deal', () => playDeal())
               addFloat('River', 38, 28)
               const stamp = Date.now()
               setRiverPulse(stamp)
@@ -231,10 +233,12 @@ const [showEmoji, setShowEmoji] = useState(false)
               }, 1200)
             }
             if (st.lastWinners && st.lastWinners.length && st.street === 'showdown' && Array.isArray(st.showdownInfo) && st.showdownInfo.length>0) {
-              playSound('win', () => { resumeAudio(); playWin() })
+              if (audioAllowedRef.current) playSoundCore('win', () => { resumeAudio(); playWin() })
               addFloat('Showdown', 38, 28)
             }
           }
+        } else {
+          try { audioAllowedRef.current = false } catch {}
         }
         // Display-Chips nur aktualisieren, wenn nicht mitten im Reveal eines Showdowns
         try {
@@ -309,7 +313,7 @@ const [showEmoji, setShowEmoji] = useState(false)
           })()
           if (allowAudio && (actorChanged || betChanged || committedChanged)) {
             if (console && console.debug) console.debug('[sound-hook] chip change', { actorChanged, betChanged, committedChanged })
-            playSound('chip', () => { resumeAudio(); playChip() })
+            if (audioAllowedRef.current) playSoundCore('chip', () => { resumeAudio(); playChip() })
           }
       // If any player is all-in, freeze display chips to their current committed stacks + remaining chips.
       try {
@@ -340,12 +344,12 @@ const [showEmoji, setShowEmoji] = useState(false)
           }
           // Timebank-Aktivierung: wenn die Bank erstmals zu laufen beginnt
           const bankActivated = prev && prev.actorPlayerId === st.actorPlayerId && (prev.actorTimebankMs ?? 30000) === 30000 && (st.actorTimebankMs ?? 30000) < 30000
-          if (allowAudio && bankActivated) { if (console && console.debug) console.debug('[sound-hook] bank start'); playSound('bank', () => { resumeAudio(); playBankStart() }) }
+          if (allowAudio && bankActivated) { if (console && console.debug) console.debug('[sound-hook] bank start'); if (audioAllowedRef.current) playSoundCore('bank', () => { resumeAudio(); playBankStart() }) }
           // Warn-Tick, wenn Primary-Zeit unter 3s fällt (nur einmal pro Actorwechsel)
           const primaryRemainingPrev = prev ? Math.max(0, (prev.actorDeadlineMs as number) - Date.now()) : null
           const primaryRemainingNow = Math.max(0, (st.actorDeadlineMs as number) - Date.now())
           const crossedWarn = (primaryRemainingPrev == null || primaryRemainingPrev > 3000) && primaryRemainingNow <= 3000
-          if (allowAudio && crossedWarn) { if (console && console.debug) console.debug('[sound-hook] warn tick'); playSound('warn', () => { resumeAudio(); playWarnTick() }) }
+          if (allowAudio && crossedWarn) { if (console && console.debug) console.debug('[sound-hook] warn tick'); if (audioAllowedRef.current) playSoundCore('warn', () => { resumeAudio(); playWarnTick() }) }
           prevActionRef.current = st
         }
       }
@@ -660,7 +664,7 @@ const [showEmoji, setShowEmoji] = useState(false)
       let i = revealedCount
       const step = () => {
         i += 1
-        playSound('deal', () => { resumeAudio(); try { playDeal() } catch {} })
+        if (audioAllowedRef.current) playSoundCore('deal', () => { resumeAudio(); try { playDeal() } catch {} })
         setRevealedCount((v) => Math.min(communityCards.length, Math.max(v + 1, i)))
         if (i < communityCards.length) {
           // Slow down turn/river, especially when all-in
@@ -673,7 +677,7 @@ const [showEmoji, setShowEmoji] = useState(false)
           setTimeout(step, delay)
         } else {
           // full reveal reached; set overlay cue and schedule hold before server jump
-          try { playSound('overlay', () => playOverlayCue()) } catch {}
+          try { if (audioAllowedRef.current) playSoundCore('overlay', () => playOverlayCue()) } catch {}
           overlayShowAtMsRef.current = Date.now() + (anyAllIn ? 1600 : 1000)
         }
       }
@@ -777,7 +781,7 @@ const [showEmoji, setShowEmoji] = useState(false)
 
       if (overlayStateRef.current === 'idle') {
         // optional Cue beim Abschluss der River-Reveal
-        if (isRiverFull) { playSound('overlayCue', () => { resumeAudio(); try { playOverlayCue() } catch {} }) }
+        if (isRiverFull) { if (audioAllowedRef.current) playSoundCore('overlayCue', () => { resumeAudio(); try { playOverlayCue() } catch {} }) }
         // If no base delay required (non-river or early win), show immediately to resist server hand switch
           if (baseDelay <= 0) {
           triggerOverlay(st)
@@ -1475,7 +1479,7 @@ const [showEmoji, setShowEmoji] = useState(false)
                   <button className="btn btn-primary" disabled={!canAct} onClick={async ()=>{ try { await handAction({ tableId: renderTables[0].tableId, playerId: actor, type:'call' }); setSizingAmt(null) } catch(e:any){ alert(e?.message||'Action error') } }}>{toCall>0? `Call ${toCall}`:'Call'}</button>
                 )}
                 {!imAllIn && actionState.legalActions.includes('check') && (
-                    <button className="btn btn-check" disabled={!canAct} onClick={async ()=>{ try { await handAction({ tableId: renderTables[0].tableId, playerId: actor, type:'check' }); setSizingAmt(null); playSound('check', () => { resumeAudio(); playCheck() }) } catch(e:any){ alert(e?.message||'Action error') } }}>Check</button>
+                    <button className="btn btn-check" disabled={!canAct} onClick={async ()=>{ try { await handAction({ tableId: renderTables[0].tableId, playerId: actor, type:'check' }); setSizingAmt(null); if (audioAllowedRef.current) playSoundCore('check', () => { resumeAudio(); playCheck() }) } catch(e:any){ alert(e?.message||'Action error') } }}>Check</button>
                 )}
                 {!imAllIn && (isBet || actionState.legalActions.includes('raise')) && (
                   <form className="sizing" onSubmit={async (e)=>{
