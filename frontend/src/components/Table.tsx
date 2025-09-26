@@ -182,7 +182,14 @@ const [showEmoji, setShowEmoji] = useState(false)
         // sound hooks + floating commentary
         if (mine) {
           const st = mine
-          // Failsafe: sobald echter Showdown mit Winners sichtbar ist, Summary-Daten in Session speichern
+          const allowAudio = (()=>{
+            try {
+              const seated = Array.isArray(st.players) && st.players.some((p:any)=> p?.playerId === wallet)
+              const spectatingChosen = !!(tableId && st.tableId === tableId)
+              return seated || spectatingChosen
+            } catch { return false }
+          })()
+          // Failsafe: sobald echter Showdown mit Winners sichtbar ist, Summary-Daten in Session speichern (nur Teilnehmer)
           try {
             const amParticipant = !!(st.players && Array.isArray(st.players) && st.players.some((p:any)=> p?.playerId === wallet))
             if (amParticipant && st.street === 'showdown' && Array.isArray(st.lastWinners) && st.lastWinners.length > 0 && Array.isArray(st.showdownInfo) && st.showdownInfo.length > 0) {
@@ -201,30 +208,32 @@ const [showEmoji, setShowEmoji] = useState(false)
               }))
             }
           } catch {}
-          if (st.street === 'preflop' && st.community?.length === 0) {
-            playSound('deal', () => { resumeAudio(); playDeal() })
-            addFloat('New Hand', 38, 28)
-          }
-          if (st.street === 'flop' && st.community?.length === 3) {
-            playSound('deal', () => playDeal())
-            addFloat('Flop', 38, 28)
-          }
-          if (st.street === 'turn' && st.community?.length === 4) {
-            playSound('deal', () => playDeal())
-            addFloat('Turn', 38, 28)
-          }
-          if (st.street === 'river' && st.community?.length === 5) {
-            playSound('deal', () => playDeal())
-            addFloat('River', 38, 28)
-            const stamp = Date.now()
-            setRiverPulse(stamp)
-            setTimeout(()=> {
-              setRiverPulse((curr) => (curr === stamp ? 0 : curr))
-            }, 1200)
-          }
-          if (st.lastWinners && st.lastWinners.length && st.street === 'showdown' && Array.isArray(st.showdownInfo) && st.showdownInfo.length>0) {
-            playSound('win', () => { resumeAudio(); playWin() })
-            addFloat('Showdown', 38, 28)
+          if (allowAudio) {
+            if (st.street === 'preflop' && st.community?.length === 0) {
+              playSound('deal', () => { resumeAudio(); playDeal() })
+              addFloat('New Hand', 38, 28)
+            }
+            if (st.street === 'flop' && st.community?.length === 3) {
+              playSound('deal', () => playDeal())
+              addFloat('Flop', 38, 28)
+            }
+            if (st.street === 'turn' && st.community?.length === 4) {
+              playSound('deal', () => playDeal())
+              addFloat('Turn', 38, 28)
+            }
+            if (st.street === 'river' && st.community?.length === 5) {
+              playSound('deal', () => playDeal())
+              addFloat('River', 38, 28)
+              const stamp = Date.now()
+              setRiverPulse(stamp)
+              setTimeout(()=> {
+                setRiverPulse((curr) => (curr === stamp ? 0 : curr))
+              }, 1200)
+            }
+            if (st.lastWinners && st.lastWinners.length && st.street === 'showdown' && Array.isArray(st.showdownInfo) && st.showdownInfo.length>0) {
+              playSound('win', () => { resumeAudio(); playWin() })
+              addFloat('Showdown', 38, 28)
+            }
           }
         }
         // Display-Chips nur aktualisieren, wenn nicht mitten im Reveal eines Showdowns
@@ -282,15 +291,23 @@ const [showEmoji, setShowEmoji] = useState(false)
           prevActionSig.current = sig
           setActionState(st)
         }
-        // Sound-Logik: nur bei relevanten Änderungen, nicht bei jedem Tick
+        // Sound-Logik: nur bei relevanten Änderungen UND nur für Teilnehmer oder explizit gewählten Tisch
         if (st) {
+          const allowAudio = (()=>{
+            try {
+              const seated = Array.isArray((hand && hand[0]?.players) || []) && (hand![0] as any).players.some((p:any)=> p?.playerId === wallet)
+              const tId = (hand && hand[0]?.tableId) || renderTables[0]?.tableId || null
+              const spectatingChosen = !!(tableId && tId && tableId === tId)
+              return seated || spectatingChosen
+            } catch { return false }
+          })()
           const prev = prevActionRef.current
           const actorChanged = !prev || prev.actorSeatIndex !== st.actorSeatIndex
           const betChanged = !prev || prev.currentBet !== st.currentBet
           const committedChanged = (()=>{
             try { return JSON.stringify(prev?.committed||{}) !== JSON.stringify(st.committed||{}) } catch { return false }
           })()
-          if (actorChanged || betChanged || committedChanged) {
+          if (allowAudio && (actorChanged || betChanged || committedChanged)) {
             if (console && console.debug) console.debug('[sound-hook] chip change', { actorChanged, betChanged, committedChanged })
             playSound('chip', () => { resumeAudio(); playChip() })
           }
@@ -314,7 +331,7 @@ const [showEmoji, setShowEmoji] = useState(false)
       } catch {}
           // Calm pacing for all-in: show a brief banner when any player is all-in and actor switches
           const stAnyAllIn = !!(hand && hand[0]?.players?.some((p:any)=> p.allIn))
-          if (stAnyAllIn && actorChanged) {
+          if (allowAudio && stAnyAllIn && actorChanged) {
             setAllInBanner({ ts: Date.now(), actor: st.actorPlayerId })
             addFloat('All‑In!', 40, 34)
             setTimeout(()=>{
@@ -323,12 +340,12 @@ const [showEmoji, setShowEmoji] = useState(false)
           }
           // Timebank-Aktivierung: wenn die Bank erstmals zu laufen beginnt
           const bankActivated = prev && prev.actorPlayerId === st.actorPlayerId && (prev.actorTimebankMs ?? 30000) === 30000 && (st.actorTimebankMs ?? 30000) < 30000
-          if (bankActivated) { if (console && console.debug) console.debug('[sound-hook] bank start'); playSound('bank', () => { resumeAudio(); playBankStart() }) }
+          if (allowAudio && bankActivated) { if (console && console.debug) console.debug('[sound-hook] bank start'); playSound('bank', () => { resumeAudio(); playBankStart() }) }
           // Warn-Tick, wenn Primary-Zeit unter 3s fällt (nur einmal pro Actorwechsel)
           const primaryRemainingPrev = prev ? Math.max(0, (prev.actorDeadlineMs as number) - Date.now()) : null
           const primaryRemainingNow = Math.max(0, (st.actorDeadlineMs as number) - Date.now())
           const crossedWarn = (primaryRemainingPrev == null || primaryRemainingPrev > 3000) && primaryRemainingNow <= 3000
-          if (crossedWarn) { if (console && console.debug) console.debug('[sound-hook] warn tick'); playSound('warn', () => { resumeAudio(); playWarnTick() }) }
+          if (allowAudio && crossedWarn) { if (console && console.debug) console.debug('[sound-hook] warn tick'); playSound('warn', () => { resumeAudio(); playWarnTick() }) }
           prevActionRef.current = st
         }
       }
