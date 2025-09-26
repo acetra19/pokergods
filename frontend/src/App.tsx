@@ -100,7 +100,7 @@ function App() {
         </select>
       </div>
       {view === 'landing' ? (
-        <Landing onEnter={()=> go('login')} />
+        <Landing onEnter={()=> loggedIn ? go('hu') : go('login')} />
       ) : view === 'login' ? (
         <AuthPanel onLogin={({ wallet: w })=>{ setWallet(w); setLoggedIn(true); go('hu') }} />
       ) : view === 'table' ? (
@@ -158,6 +158,13 @@ function App() {
         </>
         )
       )}
+      <div style={{ position:'fixed', right:16, top:16 }}>
+        {loggedIn ? (
+          <button className="btn" onClick={()=>{ try { sessionStorage.removeItem('pg_wallet') } catch {}; setLoggedIn(false); setWallet(''); go('landing') }}>Logout</button>
+        ) : (
+          <button className="btn" onClick={()=> go('login')}>Login</button>
+        )}
+      </div>
       {loggedIn && (
         <button className="admin-fab" onClick={()=> go('admin')}>Admin</button>
       )}

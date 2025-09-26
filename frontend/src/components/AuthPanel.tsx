@@ -33,15 +33,23 @@ export default function AuthPanel({ onLogin }: { onLogin: (p: { username: string
     <div style={{ border:'1px solid rgba(255,213,79,0.25)', padding:12, borderRadius:10, background:'rgba(26,8,48,0.95)' }}>
       <h3>Login</h3>
       <div style={{ display:'grid', gridTemplateColumns:'140px 1fr', gap:8, alignItems:'center' }}>
+        {/* Wallet section first */}
+        <label>Wallet</label>
+        <div style={{ display:'flex', gap:8 }}>
+          <input style={{ flex:1 }} value={wallet} onChange={(e)=> setWallet(e.target.value)} placeholder="Solana address" />
+          <button
+            onClick={scan}
+            disabled={!wallet || loading}
+            style={{
+              background: !elig ? '#ffd54f' : (elig.eligible ? '#3dbb74' : '#d9534f'),
+              color:'#1a1a1a', border:'1px solid rgba(0,0,0,0.2)'
+            }}
+          >{loading? 'Scanning...' : 'Scan'}</button>
+        </div>
         <label>Username</label>
         <input value={username} onChange={(e)=> setUsername(e.target.value)} placeholder="username" />
         <label>Password</label>
         <input type="password" value={password} onChange={(e)=> setPassword(e.target.value)} placeholder="password" />
-        <label>Wallet</label>
-        <div style={{ display:'flex', gap:8 }}>
-          <input style={{ flex:1 }} value={wallet} onChange={(e)=> setWallet(e.target.value)} placeholder="Solana address" />
-          <button onClick={scan} disabled={!wallet || loading}>{loading? 'Scanning...' : 'Scan'}</button>
-        </div>
         <label>Avatar</label>
         <div style={{ display:'flex', flexDirection:'column', gap:6 }}>
           <input type="file" accept="image/*" onChange={async (e)=>{
