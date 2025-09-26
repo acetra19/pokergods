@@ -376,12 +376,7 @@ const [showEmoji, setShowEmoji] = useState(false)
         }
       }
       if (m?.type === 'chat' && m.payload?.timestamp && m.payload?.message) {
-        try {
-          const currId = (myTable?.tableId) || (hand && hand[0]?.tableId) || renderTables[0]?.tableId || null
-          if (!m.payload.tableId || (currId && m.payload.tableId === currId)) {
-        setChatLines((prev)=> [{ ts: m.payload.timestamp, text: m.payload.message, tableId: (m.payload.tableId ?? null) }, ...prev].slice(0, 60))
-          }
-        } catch {}
+        try { setChatLines((prev)=> [{ ts: m.payload.timestamp, text: m.payload.message, tableId: (m.payload.tableId ?? null) }, ...prev].slice(0, 60)) } catch {}
       }
       
     }, (status)=>{ setWsStatus(status) })
