@@ -919,5 +919,4 @@ button:focus-visible { outline: 2px solid #ffd54f; outline-offset: 2px; }
   body { padding-bottom: env(safe-area-inset-bottom); padding-top: env(safe-area-inset-top); }
 }
 
-/* Prevent gray gutters on zoomed mobile */
-html, body { width: 100%; max-width: 100vw; overflow-x: hidden; }
+/* (removed gray-gutter clamp to keep pinch-zoom fully available) */
