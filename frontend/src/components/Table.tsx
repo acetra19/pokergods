@@ -508,6 +508,9 @@ const [showEmoji, setShowEmoji] = useState(false)
     if (!st) return
     const winners = st.lastWinners
     if (!Array.isArray(winners) || !winners.length) return
+    // Only show overlay for seated participants (spectators should not see WIN/LOSE)
+    const amParticipant = !!(st.players && Array.isArray(st.players) && st.players.some((p:any)=> p?.playerId === wallet))
+    if (!amParticipant) return
     // Overlay nur bei echtem Showdown‑Matchende (nicht bei Fold‑Ends)
     const matchEnd = !!(st.players?.some((p:any)=> p.busted || (p.chips ?? 0) <= 0)) && st.street === 'showdown' && Array.isArray(st.showdownInfo) && st.showdownInfo.length>0
     if (!matchEnd) return
