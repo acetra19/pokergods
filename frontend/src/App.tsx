@@ -84,6 +84,9 @@ function App() {
       <div className="brand-header">
         <div className="brand-title">POKERGODS</div>
         <div className="brand-sub">Heads‑Up Poker</div>
+        <div style={{ marginLeft:'auto' }}>
+          {/* Latency/WS indicator rendered by TableView when present; placeholder keeps layout */}
+        </div>
       </div>
       <div style={{ display: 'flex', gap: 8, alignItems:'center' }}>
         <button onClick={() => go(view==='landing' ? 'login' : 'landing')}>{view==='landing' ? 'Login' : 'Home'}</button>

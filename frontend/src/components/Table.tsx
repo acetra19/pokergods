@@ -33,6 +33,7 @@ export default function TableView({ wallet, tableId }: { wallet?: string, tableI
   const [actionState, setActionState] = useState<any | null>(null)
   const [chatOpen, setChatOpen] = useState<boolean>(false)
   const [chatLines, setChatLines] = useState<{ts:number,text:string,tableId:string|null}[]>([])
+  const [chatInput, setChatInput] = useState<string>('')
   const [toast, setToast] = useState<string>('')
   const [floatTexts, setFloatTexts] = useState<Array<{ id:string; text:string; x:number; y:number; size?:number }>>([])
   const [dealFx, setDealFx] = useState<Array<{ id:string; x:number; y:number; rot:number }>>([])
@@ -367,6 +368,7 @@ const [showEmoji, setShowEmoji] = useState(false)
     const id = setInterval(()=> setNowMs(Date.now()), 500)
     return ()=> clearInterval(id)
   }, [])
+
 
   const myTable = useMemo(() => {
     // If hand data is missing (server already advanced), keep showing the last snapshot during post-hold window
@@ -1415,6 +1417,10 @@ const [showEmoji, setShowEmoji] = useState(false)
                 {lines.map((l)=> (
                   <div key={`${l.ts}-${l.tableId ?? 'all'}`} className="line">{new Date(l.ts).toLocaleTimeString()} · {(l.tableId ? `[${l.tableId}] ` : '')}{l.text}</div>
                 ))}
+                <form onSubmit={(e)=>{ e.preventDefault(); const msg = chatInput.trim(); if (!msg) return; try { const currentTableId = (hand && hand[0]?.tableId) || t.tableId; (window as any).pg_ws_send && (window as any).pg_ws_send({ type:'chat', tableId: currentTableId, message: msg }); setChatInput('') } catch {} }} style={{ display:'flex', gap:6, marginTop:6 }}>
+                  <input value={chatInput} onChange={(e)=> setChatInput(e.target.value)} placeholder="message…" style={{ flex:1 }} />
+                  <button className="btn btn-primary" type="submit">Send</button>
+                </form>
               </div>
             )
           })()}

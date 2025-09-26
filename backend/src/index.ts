@@ -553,6 +553,14 @@ wss.on("connection", (ws: WebSocket) => {
         incOnline(obj.wallet);
         return;
       }
+      if (obj && obj.type === 'chat' && typeof obj.tableId==='string' && typeof obj.message==='string') {
+        const from = wsToWallet.get(ws) || '';
+        const msg = String(obj.message).slice(0, 280);
+        if (msg.trim()) {
+          broadcast({ type: 'chat', payload: { tableId: obj.tableId, message: `${resolveDisplayName(from)}: ${msg}`, timestamp: Date.now() } });
+        }
+        return;
+      }
       if (obj && obj.type === 'emoji' && typeof obj.tableId==='string' && typeof obj.emoji==='string') {
         const from = wsToWallet.get(ws) || '';
         broadcast({ type:'emoji', payload: { tableId: obj.tableId, from, emoji: obj.emoji, ts: Date.now() } });
