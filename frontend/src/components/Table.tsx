@@ -1343,10 +1343,11 @@ const [showEmoji, setShowEmoji] = useState(false)
                 const villainTop: CSSProperties = { left: '50%', top: '-96px', transform: 'translate(-50%, 0)' }
                 let seatStyle: CSSProperties
                 if (totalSeats <= 2) {
-                  const heroBelow = heroSeatIdx === -1 || heroSeatIdx === 0
-                  if (heroBelow) {
-                    seatStyle = (heroSeatIdx === -1 || s.seatIndex === heroSeatIdx) ? heroBottom : villainTop
+                  if (heroSeatIdx === -1) {
+                    // Spectator view: place seatIndex 0 bottom, 1 top
+                    seatStyle = s.seatIndex === 0 ? heroBottom : villainTop
                   } else {
+                    // Player view: keep your own seat at bottom
                     seatStyle = s.seatIndex === heroSeatIdx ? heroBottom : villainTop
                   }
                 } else {
