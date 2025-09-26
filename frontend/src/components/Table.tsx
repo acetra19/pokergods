@@ -839,20 +839,14 @@ const [showEmoji, setShowEmoji] = useState(false)
     return []
   }, [tables, hand])
 
-  // Redirect to HU leaderboard after a match ends (table disappears) instead of empty table screen
+  // Remove old auto-redirect/open-leaderboard behavior after match end; spectators stay on table
   const hadTableRef = useRef<boolean>(false)
   const redirectTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   useEffect(() => {
     if (renderTables.length > 0) { hadTableRef.current = true; return }
     if (!hadTableRef.current || renderTables.length !== 0) return
-    // Don't redirect while the match overlay is visible
-    if (showOverlay || overlayStateRef.current === 'visible') return
-    try { if (redirectTimerRef.current) { clearTimeout(redirectTimerRef.current) } } catch {}
-    redirectTimerRef.current = setTimeout(() => {
-      if (showOverlay || overlayStateRef.current === 'visible') return
-      try { sessionStorage.setItem('pg_open_leader_once', '1'); window.location.hash = '#/hu' } catch {}
-      hadTableRef.current = false
-    }, 1200)
+    // no redirect anymore
+    hadTableRef.current = false
     return () => { try { if (redirectTimerRef.current) clearTimeout(redirectTimerRef.current) } catch {} }
   }, [renderTables.length, showOverlay])
 
@@ -1593,8 +1587,7 @@ const [showEmoji, setShowEmoji] = useState(false)
                         try { sessionStorage.setItem('pg_open_leader_once', '1') } catch {}
                       }}>Next Match</button>
                       <button className="btn btn-primary" onClick={()=>{
-                        // open leaderboard in a new tab
-                        try { sessionStorage.setItem('pg_open_leader_once', '1'); window.location.hash = '#/hu' } catch {}
+                        try { window.location.hash = '#/hu' } catch {}
                       }}>Check Leaderboard</button>
                     </div>
                   )}

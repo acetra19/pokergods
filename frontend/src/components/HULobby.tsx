@@ -55,19 +55,7 @@ export default function HULobby({ wallet, onMatch }: { wallet: string, onMatch: 
         setSessionBB(st?.badBeat || null)
       } catch {}
       // If we just redirected from a finished table, auto-open leaderboard modal once
-      try {
-        if (sessionStorage.getItem('pg_open_leader_once') === '1') {
-          setRowsLeader(await huLeaderboard())
-          try {
-            const e = await huElo();
-            const map: Record<string, number> = {}
-            ;(Array.isArray(e) ? e : []).forEach((r:any)=>{ if (r && typeof r.playerId==='string' && typeof r.rating==='number') map[r.playerId]=r.rating })
-            setEloMap(map)
-          } catch {}
-          setOpenModal('leader')
-          sessionStorage.removeItem('pg_open_leader_once')
-        }
-      } catch {}
+      // removed legacy auto-open leaderboard flag
     }
     poll()
     const id = setInterval(poll, 2000)
