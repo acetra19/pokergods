@@ -1464,7 +1464,7 @@ const [showEmoji, setShowEmoji] = useState(false)
               <div className="action-panel actor-anim" data-animkey={actorAnimKey} style={{ marginTop: 84, marginBottom: 24 }}>
               {imAllIn ? (
             <>
-              <div className="action-info info" style={{ justifyContent:'center' }}><span className="spinner" />You're All‑In! Waiting for opponent…</div>
+              <div className="action-info info" style={{ justifyContent:'center', marginLeft:-6 }}><span className="spinner" />You're All‑In! Waiting for opponent…</div>
             </>
               ) : (
               <div className="action-info" style={{ background:'rgba(255,255,255,0.96)', color:'#0a2a1b', marginLeft: -8 }}>
@@ -1542,7 +1542,7 @@ const [showEmoji, setShowEmoji] = useState(false)
               ) : (
                   imAllIn ? null : (
                     <div className="waiting-block" style={{ width:'100%' }}>
-                      <div className="action-info info" style={{ justifyContent:'center', marginBottom:10 }}><span className="spinner" />Waiting for opponent…</div>
+                      <div className="action-info info" style={{ justifyContent:'center', marginBottom:10, marginLeft:-6 }}><span className="spinner" />Waiting for opponent…</div>
                       <div className="waiting-row" style={{ height:72 }} />
                     </div>
                   )
