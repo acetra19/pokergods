@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState, memo, useCallback, type CSSProperties } from 'react'
 import pgLogo from '../images/pokergods.png'
 import type { TableState, BlindLevel } from '../types'
-import { getSeating, handState, handActionState, handAction, connectWS, getProfile } from '../api'
+import { getSeating, handState, handActionState, handAction, connectWS, getProfile, diagLog } from '../api'
 import { formatCardLabel } from '../utils/cards'
 import { playChip, playDeal, playWin, resumeAudio, playWarnTick, playBankStart, playCheck, playLose, playOverlayCue, playShuffle } from '../utils/sound'
 import { evaluateBestFive as evalClient, compareHands as cmpClient } from '../utils/hand'
@@ -436,6 +436,26 @@ const [showEmoji, setShowEmoji] = useState(false)
   const inRevealUI = useMemo(() => isShowdownReveal, [isShowdownReveal])
   const inRevealUIRef = useRef(inRevealUI)
   useEffect(()=> { inRevealUIRef.current = inRevealUI }, [inRevealUI])
+
+  // Watchdog: Falls wir im Showdown festhängen und der River clientseitig nicht ankommt, aktiv nachladen
+  useEffect(() => {
+    if (!inRevealUI) return
+    if ((communityCards.length || 0) >= 5) return
+    let alive = true
+    const started = Date.now()
+    const kick = async () => {
+      if (!alive) return
+      try { const s:any = await handState(); setHand(s) } catch {}
+      if ((communityCards.length || 0) >= 5 || !alive) return
+      if (Date.now() - started > 5000) {
+        try { diagLog && (await diagLog('reveal_stall', { tableId: myTable?.tableId||null, commLen: communityCards.length||0, street, hasShowdownInfo })) } catch {}
+        return
+      }
+      setTimeout(kick, 450)
+    }
+    const id = setTimeout(kick, 400)
+    return () => { alive = false; try { clearTimeout(id) } catch {} }
+  }, [inRevealUI, communityCards.length])
 
   // When entering reveal phase (all-in locked/showdown), freeze display chips for ALL players
   useEffect(() => {

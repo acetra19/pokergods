@@ -131,6 +131,14 @@ export async function handHistory(tableId?: string) {
   if (!res.ok) throw new Error('failed to get hand history')
   return res.json()
 }
+// Client diagnostics
+export async function diagLog(tag: string, data?: any) {
+  try {
+    const res = await fetch(`${BACKEND}/diag/log`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ tag, data }) })
+    return res.ok
+  } catch { return false }
+}
+
 
 export async function fairnessCommit(tableId: string) {
   const res = await fetch(`${BACKEND}/fairness/commit?tableId=${encodeURIComponent(tableId)}`)
