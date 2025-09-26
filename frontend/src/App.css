@@ -795,6 +795,11 @@ button:focus-visible { outline: 2px solid #ffd54f; outline-offset: 2px; }
 .pg-summary { opacity: 0; transform: translateY(6px); animation: summaryIn 320ms ease-out forwards; }
 @keyframes summaryIn { to { opacity: 1; transform: translateY(0); } }
 
+/* Summary player holes smaller + winner highlight */
+.pg-summary .hole-box { display:inline-flex; gap:6px; align-items:center; padding:6px; border-radius:10px; border:1px solid rgba(255,213,79,0.18); background: rgba(26,8,48,0.35); }
+.pg-summary .hole-box .card-sm { transform: scale(0.9); transform-origin:center; }
+.pg-summary .hole-box.winner { border:2px solid #ffd54f; box-shadow: 0 0 12px rgba(255,213,79,0.45); }
+
 /* Smooth enter to table */
 .pg-curtain-soft { position: fixed; inset:0; z-index:9998; background: rgba(10,2,22,0.65); animation: veilOut 300ms ease-out forwards; }
 @keyframes veilOut { from { background: rgba(10,2,22,0.65); } to { background: rgba(10,2,22,0); } }

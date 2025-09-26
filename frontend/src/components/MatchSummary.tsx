@@ -7,6 +7,7 @@ export default function MatchSummary() {
   let data: any = null
   try { data = JSON.parse(sessionStorage.getItem('pg_last_match') || 'null') } catch {}
   const winners = data?.winners || []
+  const winnerSet = new Set<string>(Array.isArray(winners) ? winners.map((w:any)=> String(w.playerId)) : [])
   const youWin = !!winners.find((w:any)=> w.playerId === data?.you)
   const [names, setNames] = useState<Record<string,string>>({})
   const nameOf = (pid: string) => {
@@ -73,22 +74,21 @@ export default function MatchSummary() {
               ))}
             </div>
             <div style={{ display:'flex', gap:28 }}>
-              {cards.map((s:any)=> (
-                <div key={s.playerId} style={{ display:'flex', alignItems:'center', gap:6 }}>
-                  <span style={{ fontSize:12, opacity:0.85 }}>{s.displayName || nameOf(s.playerId)}</span>
-                  {(() => {
-                    const hx = holesByPlayer[s.playerId] || s.hole || []
-                    const h0 = hx?.[0] || null
-                    const h1 = hx?.[1] || null
-                    return (
-                      <>
-                        <span className={`card-sm ${h0?.suit?`suit-${h0.suit}`:''}`}>{label(h0)}</span>
-                        <span className={`card-sm ${h1?.suit?`suit-${h1.suit}`:''}`}>{label(h1)}</span>
-                      </>
-                    )
-                  })()}
-                </div>
-              ))}
+              {cards.map((s:any)=> {
+                const isWinner = winnerSet.has(String(s.playerId))
+                const hx = holesByPlayer[s.playerId] || s.hole || []
+                const h0 = hx?.[0] || null
+                const h1 = hx?.[1] || null
+                return (
+                  <div key={s.playerId} style={{ display:'flex', alignItems:'center', gap:8 }}>
+                    <span style={{ fontSize:12, opacity:0.85, minWidth:52, textAlign:'right' }}>{s.displayName || nameOf(s.playerId)}</span>
+                    <div className={`hole-box ${isWinner? 'winner':''}`}>
+                      <span className={`card-sm ${h0?.suit?`suit-${h0.suit}`:''}`}>{label(h0)}</span>
+                      <span className={`card-sm ${h1?.suit?`suit-${h1.suit}`:''}`}>{label(h1)}</span>
+                    </div>
+                  </div>
+                )
+              })}
             </div>
           </div>
         </div>
