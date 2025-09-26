@@ -132,10 +132,6 @@ export default function AuthPanel({ onLogin }: { onLogin: (p: { username: string
             } catch (e:any) { setHint(e?.message||'Login failed') }
           }} disabled={!canLogin}>Login</button>
         )}
-        <button className="btn" onClick={async ()=>{
-          try { await saveProfile(wallet, { username, avatarUrl }) } catch {}
-          alert('Saved')
-        }} disabled={!canLogin}>Save Profile</button>
       </div>
       {walletTaken?.taken && (
         <div style={{ marginTop:6, fontSize:12, color:'#ffd54f' }}>Wallet already linked to <b>{walletTaken.username}</b>. Please log in with username/password.</div>
