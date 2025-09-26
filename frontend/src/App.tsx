@@ -42,11 +42,21 @@ function App() {
   // Hash routing
   useEffect(() => {
     const applyRoute = () => {
-      const h = (window.location.hash || '').replace(/^#\/?/, '')
+      const raw = (window.location.hash || '').replace(/^#\/?/, '')
+      const [h, qs] = raw.split('?')
       switch (h) {
         case 'login': setView('login'); break
         case 'hu': setView('hu'); break
-        case 'table': setView('table'); break
+        case 'table': {
+          // optional tid param for spectate/view specific table
+          try {
+            const params = new URLSearchParams(qs || '')
+            const tid = params.get('tid')
+            if (tid) setTableId(tid)
+          } catch {}
+          setView('table');
+          break
+        }
         case 'admin': setView('admin'); break
         case 'profile': setView('profile'); break
         case 'tokenomics': setView('tokenomics'); break

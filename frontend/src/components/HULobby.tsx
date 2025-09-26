@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { connectWS, huStatus, huJoin, huLeave, huLeaderboard, huBotJoin, huBotStatus, handHistory, getProfile, huElo, huSessionStats, huLeague, huLeagueVs } from '../api'
+import { connectWS, huStatus, huJoin, huLeave, huLeaderboard, huBotJoin, huBotStatus, handHistory, handState, getProfile, huElo, huSessionStats, huLeague, huLeagueVs } from '../api'
 import Modal from './Modal'
 
 export default function HULobby({ wallet, onMatch }: { wallet: string, onMatch: (tableId:string)=>void }){
@@ -11,13 +11,14 @@ export default function HULobby({ wallet, onMatch }: { wallet: string, onMatch: 
   const [displayName, setDisplayName] = useState<string>('')
   const [stakes, setStakes] = useState<'50/100'|'100/200'|'200/400'>('50/100')
   const [speed, setSpeed] = useState<'normal'|'fast'>('normal')
-  const [openModal, setOpenModal] = useState<'leader'|'history'|'league'|null>(null)
+  const [openModal, setOpenModal] = useState<'leader'|'history'|'league'|'spectate'|null>(null)
   const [rowsLeader, setRowsLeader] = useState<any[]>([])
   const [eloMap, setEloMap] = useState<Record<string, number>>({})
   const [rowsHistory, setRowsHistory] = useState<any[]>([])
   const [online, setOnline] = useState<number>(0)
   const [sessionTop, setSessionTop] = useState<any|null>(null)
   const [sessionBB, setSessionBB] = useState<any|null>(null)
+  const [tables, setTables] = useState<any[]>([])
 
   useEffect(()=>{
     const ws = connectWS((m:any)=>{
@@ -135,6 +136,10 @@ export default function HULobby({ wallet, onMatch }: { wallet: string, onMatch: 
               try { const r = await huLeague(); setRowsLeader(r||[]) } catch { setRowsLeader([]) }
               setOpenModal('league')
             }}>League</button>
+            <button className="btn" onClick={async ()=>{
+              try { const s:any[] = await handState(); setTables(Array.isArray(s)? s:[]) } catch { setTables([]) }
+              setOpenModal('spectate')
+            }}>Spectate</button>
           </div>
         </div>
       </div>
@@ -323,6 +328,36 @@ export default function HULobby({ wallet, onMatch }: { wallet: string, onMatch: 
             </table>
           )
         })()}
+      </Modal>
+
+      <Modal open={openModal==='spectate'} title="Active Tables" onClose={()=> setOpenModal(null)}>
+        {tables.length === 0 ? (
+          <div style={{ opacity:0.8 }}>No active tables</div>
+        ) : (
+          <table className="pg-table">
+            <thead>
+              <tr><th>Table</th><th>Players</th><th>Street</th><th>Pot</th><th>Community</th><th></th></tr>
+            </thead>
+            <tbody>
+              {tables.map((t:any)=>{
+                const players = Array.isArray(t.players)? t.players.map((p:any)=> p.playerId).join(', '): '-'
+                const street = t.street ?? '-'
+                const pot = t.pot ?? 0
+                const comm = Array.isArray(t.community)? t.community.length: 0
+                return (
+                  <tr key={t.tableId}>
+                    <td>{t.tableId}</td>
+                    <td>{players}</td>
+                    <td>{street}</td>
+                    <td><span className="pg-pill">{pot}</span></td>
+                    <td>{comm}</td>
+                    <td><button className="btn" onClick={()=>{ window.location.hash = `#/table?tid=${encodeURIComponent(t.tableId)}`; setOpenModal(null) }}>View</button></td>
+                  </tr>
+                )
+              })}
+            </tbody>
+          </table>
+        )}
       </Modal>
     </div>
   )
