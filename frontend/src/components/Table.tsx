@@ -3,7 +3,7 @@ import pgLogo from '../images/pokergods.png'
 import type { TableState, BlindLevel } from '../types'
 import { getSeating, handState, handActionState, handAction, connectWS, getProfile, diagLog } from '../api'
 import { formatCardLabel } from '../utils/cards'
-import { playChip, playDeal, playWin, resumeAudio, playWarnTick, playBankStart, playCheck, playLose, playOverlayCue, playShuffle } from '../utils/sound'
+import { playChip, playDeal, playWin, resumeAudio, playWarnTick, playBankStart, playCheck, playLose, playOverlayCue, playShuffle, playClick } from '../utils/sound'
 import { evaluateBestFive as evalClient, compareHands as cmpClient } from '../utils/hand'
 
 const SOUND_COOLDOWN_MS: Record<string, number> = {
@@ -14,6 +14,7 @@ const SOUND_COOLDOWN_MS: Record<string, number> = {
   bank: 600,
   check: 200,
   overlayCue: 300,
+    click: 120,
 }
 
 const soundLastPlayed: Record<string, number> = {}
@@ -1501,13 +1502,13 @@ const [showEmoji, setShowEmoji] = useState(false)
               <>
               <div className="action-row">
                 {!imAllIn && actionState.legalActions.includes('fold') && (
-                  <button className="btn btn-danger" disabled={!canAct} onClick={async ()=>{ try { await handAction({ tableId: renderTables[0].tableId, playerId: actor, type:'fold' }); setSizingAmt(null) } catch(e:any){ alert(e?.message||'Action error') } }}>Fold</button>
+                  <button className="btn btn-danger" disabled={!canAct} onClick={async ()=>{ try { await handAction({ tableId: renderTables[0].tableId, playerId: actor, type:'fold' }); setSizingAmt(null); playSoundCore('click', ()=>{ resumeAudio(); playClick() }) } catch(e:any){ alert(e?.message||'Action error') } }}>Fold</button>
                 )}
                 {!imAllIn && actionState.legalActions.includes('call') && (
-                  <button className="btn btn-primary" disabled={!canAct} onClick={async ()=>{ try { await handAction({ tableId: renderTables[0].tableId, playerId: actor, type:'call' }); setSizingAmt(null) } catch(e:any){ alert(e?.message||'Action error') } }}>{toCall>0? `Call ${toCall}`:'Call'}</button>
+                  <button className="btn btn-primary" disabled={!canAct} onClick={async ()=>{ try { await handAction({ tableId: renderTables[0].tableId, playerId: actor, type:'call' }); setSizingAmt(null); playSoundCore('click', ()=>{ resumeAudio(); playClick() }) } catch(e:any){ alert(e?.message||'Action error') } }}>{toCall>0? `Call ${toCall}`:'Call'}</button>
                 )}
                 {!imAllIn && actionState.legalActions.includes('check') && (
-                    <button className="btn btn-check" disabled={!canAct} onClick={async ()=>{ try { await handAction({ tableId: renderTables[0].tableId, playerId: actor, type:'check' }); setSizingAmt(null); if (audioAllowedRef.current) playSoundCore('check', () => { resumeAudio(); playCheck() }) } catch(e:any){ alert(e?.message||'Action error') } }}>Check</button>
+                    <button className="btn btn-check" disabled={!canAct} onClick={async ()=>{ try { await handAction({ tableId: renderTables[0].tableId, playerId: actor, type:'check' }); setSizingAmt(null); playSoundCore('check', () => { resumeAudio(); playCheck() }) } catch(e:any){ alert(e?.message||'Action error') } }}>Check</button>
                 )}
                 {!imAllIn && (isBet || actionState.legalActions.includes('raise')) && (
                   <form className="sizing" onSubmit={async (e)=>{
@@ -1547,7 +1548,7 @@ const [showEmoji, setShowEmoji] = useState(false)
                         )}
                       </div>
                     </div>
-                    <button className="btn btn-success" type="submit" disabled={!canAct} data-testid={isBet? 'submit-bet':'submit-raise'}>{primaryLabel()}</button>
+                    <button className="btn btn-success" type="submit" disabled={!canAct} data-testid={isBet? 'submit-bet':'submit-raise'} onClick={()=>{ try { playSoundCore('click', ()=>{ resumeAudio(); playClick() }) } catch {} }}>{primaryLabel()}</button>
                   </form>
                 )}
               </div>
