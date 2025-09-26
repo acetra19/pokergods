@@ -91,7 +91,8 @@ const [showEmoji, setShowEmoji] = useState(false)
   // deprecated: guarded in sound.ts with global cooldown now
   // const lastShuffleAtRef = useRef<number>(0)
   const didMatchShuffleRef = useRef<boolean>(false)
-  const lastShuffleKeyRef = useRef<string>('')
+  // removed: using newMatchRef + didMatchShuffleRef for per‑match shuffle trigger
+  // const lastShuffleKeyRef = useRef<string>('')
   // simple deterministic pseudo random based on hand number
   const seededRand = (seed:number, salt:number=1) => {
     const x = Math.sin(seed * 9301 + salt * 49297) * 233280
@@ -529,18 +530,13 @@ const [showEmoji, setShowEmoji] = useState(false)
         const chips = document.querySelector('.chip-stack') as HTMLElement | null
         if (chips) { chips.classList.remove('flash-once'); void chips.offsetWidth; chips.classList.add('flash-once') }
       } catch {}
-      // Only play shuffle once per hand and only when this client is actually seated
+      // Only play shuffle once per MATCH start (table change) and only when this client is actually seated
       try {
         const render = renderTables[0]
         const amSeated = !!(render && Array.isArray((render as any).seats) && (render as any).seats.some((p:any)=> p?.playerId === wallet))
-        const tableKey = myTable?.tableId ?? null
-        if (amSeated && tableKey) {
-          const k = `${tableKey}-${handNumber}`
-          if (lastShuffleKeyRef.current !== k) {
-            lastShuffleKeyRef.current = k
-            didMatchShuffleRef.current = true
-            resumeAudio(); playShuffle()
-          }
+        if (amSeated && newMatchRef.current && !didMatchShuffleRef.current) {
+          didMatchShuffleRef.current = true
+          resumeAudio(); playShuffle()
         }
         newMatchRef.current = false
       } catch {}
