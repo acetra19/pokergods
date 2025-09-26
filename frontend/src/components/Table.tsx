@@ -1459,15 +1459,17 @@ const [showEmoji, setShowEmoji] = useState(false)
               {imAllIn ? (
             <>
               <div className="action-info info" style={{ justifyContent:'center' }}><span className="spinner" />You're All‑In! Waiting for opponent…</div>
-              <div className="allin-fill" aria-hidden>
-                <span className="dot" /><span className="dot" /><span className="dot" /><span className="dot" /><span className="dot" />
-              </div>
             </>
               ) : (
               <div className="action-info" style={{ background:'rgba(255,255,255,0.96)', color:'#0a2a1b', marginLeft: -8 }}>
                 <span><b>To act:</b> {nameOf(actor)}</span>
                   <span><b>To call:</b> {toCall}</span>
                   {!isBet && <span><b>Min raise:</b> {actionState.currentBet + actionState.minRaise}</span>}
+                </div>
+              )}
+              {(imAllIn || pendingAllIn) && (
+                <div className="allin-fill" aria-hidden>
+                  <span className="dot" /><span className="dot" /><span className="dot" /><span className="dot" /><span className="dot" />
                 </div>
               )}
               {canAct ? (
@@ -1527,20 +1529,9 @@ const [showEmoji, setShowEmoji] = useState(false)
                   imAllIn ? null : (
                     <div className="waiting-block" style={{ width:'100%' }}>
                       <div className="action-info info" style={{ justifyContent:'center', marginBottom:10 }}><span className="spinner" />Waiting for opponent…</div>
-                      {pendingAllIn ? (
-                        <div className="allin-fill" aria-hidden>
-                          <span className="dot" /><span className="dot" /><span className="dot" /><span className="dot" /><span className="dot" />
-                        </div>
-                      ) : (
-                        <div className="waiting-row" style={{ height:72 }} />
-                      )}
+                      <div className="waiting-row" style={{ height:72 }} />
                     </div>
                   )
-              )}
-              {!imAllIn && pendingAllIn && (
-                <div className="allin-fill" aria-hidden>
-                  <span className="dot" /><span className="dot" /><span className="dot" /><span className="dot" /><span className="dot" />
-                </div>
               )}
             </div>
           );
@@ -1549,9 +1540,11 @@ const [showEmoji, setShowEmoji] = useState(false)
         {!actionState && (
           <div className="action-panel actor-anim" data-animkey={actorAnimKey} style={{ marginTop: 84, marginBottom: 24 }}>
             <div className="action-info info" style={{ justifyContent:'center' }}><span className="spinner" />{inRevealUI ? 'All‑In in progress…' : 'Waiting…'}</div>
-            <div className="allin-fill" aria-hidden>
-              <span className="dot" /><span className="dot" /><span className="dot" /><span className="dot" /><span className="dot" />
-            </div>
+            {inRevealUI && (
+              <div className="allin-fill" aria-hidden>
+                <span className="dot" /><span className="dot" /><span className="dot" /><span className="dot" /><span className="dot" />
+              </div>
+            )}
           </div>
         )}
         </div>
