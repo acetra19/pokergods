@@ -899,3 +899,22 @@ button:focus-visible { outline: 2px solid #ffd54f; outline-offset: 2px; }
   60% { transform: translate(var(--chip-fx-x,0), var(--chip-fx-y,0)) scale(0.95); opacity: 0.85; }
   100% { transform: translate(var(--chip-fx-x,0), var(--chip-fx-y,0)) scale(0.6); opacity: 0; }
 }
+
+/* --- Mobile tuning (<= 820px) --- */
+@media (max-width: 820px) {
+  .felt-wrap { margin: 48px auto; padding: 40px 0 40px; }
+  .felt { transform: scale(0.86); transform-origin: center; }
+  .action-panel { width: 92vw; max-width: 92vw; margin: 0 auto; margin-top: 60px; }
+  .action-info { font-size: 15px; }
+  .action-row .btn,
+  .btn,
+  .btn-success,
+  .btn-primary,
+  .btn-danger,
+  .btn-check { min-height: 46px; padding: 10px 16px; }
+  .emoji-btn { transform: scale(1.1); }
+  .chat-panel { right: 10px; bottom: 10px; width: 86vw; max-height: 24vh; }
+  .hud { width: 86vw; }
+  .seat-layer { transform: translate(-50%, -50%) scale(0.92); }
+  body { padding-bottom: env(safe-area-inset-bottom); padding-top: env(safe-area-inset-top); }
+}

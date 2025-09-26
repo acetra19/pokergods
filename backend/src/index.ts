@@ -240,13 +240,17 @@ const huVs = new Map<string, Map<string, { wins:number; losses:number; matches:n
 const getElo = (pid: string) => huElo.get(pid) ?? 1500;
 const setElo = (pid: string, r: number) => { huElo.set(pid, Math.round(r)); };
 function updateElo(winnerId: string, loserId: string) {
-  const K = 32;
   const Ra = getElo(winnerId);
   const Rb = getElo(loserId);
   const Ea = 1 / (1 + Math.pow(10, (Rb - Ra) / 400));
   const Eb = 1 / (1 + Math.pow(10, (Ra - Rb) / 400));
-  setElo(winnerId, Ra + K * (1 - Ea));
-  setElo(loserId, Rb + K * (0 - Eb));
+  // Dynamic K-factor: higher when few matches (faster convergence)
+  const aw = huLeaderboard.get(resolveDisplayName(winnerId))?.matches || 0;
+  const al = huLeaderboard.get(resolveDisplayName(loserId))?.matches || 0;
+  const Kw = aw < 10 ? 40 : aw < 30 ? 32 : 24;
+  const Kl = al < 10 ? 40 : al < 30 ? 32 : 24;
+  setElo(winnerId, Ra + Kw * (1 - Ea));
+  setElo(loserId, Rb + Kl * (0 - Eb));
   persistHuDataDebounced();
 }
 
@@ -411,9 +415,9 @@ app.get("/hu/status/:wallet", (req, res) => {
 });
 
 app.get("/hu/leaderboard", (_req, res) => {
-  const rows = Array.from(huLeaderboard.entries()).map(([displayName, v]) => ({
-    playerId: displayName,
-    displayName,
+  const rows = Array.from(huLeaderboard.entries()).map(([wallet, v]) => ({
+    playerId: wallet,
+    displayName: resolveDisplayName(wallet),
     wins: v.wins,
     matches: v.matches,
   }));
