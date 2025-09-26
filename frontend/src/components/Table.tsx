@@ -66,6 +66,8 @@ const [showEmoji, setShowEmoji] = useState(false)
   const overlayShowAtMsRef = useRef<number>(0)
   const overlayShowTimerRef = useRef<ReturnType<typeof setTimeout>|null>(null)
   const overlayDataRef = useRef<{ tableId: string; handNumber: number; winners: any[]; showdownInfo: any[] | null; matchEnd: boolean } | null>(null)
+  const lastShowdownRef = useRef<{ tableId:string; handNumber:number; ts:number } | null>(null)
+  const lastShowdownStateRef = useRef<any|null>(null)
   // Prevent duplicate overlays for the same hand: remember last shown signature
   const lastOverlayShownRef = useRef<{ tableId: string; handNumber: number } | null>(null)
   // Track last winners signature to only react on the first winners emission per hand
@@ -195,6 +197,11 @@ const [showEmoji, setShowEmoji] = useState(false)
           // Failsafe: sobald echter Showdown mit Winners sichtbar ist, Summary-Daten in Session speichern (nur Teilnehmer)
           try {
             const amParticipant = !!(st.players && Array.isArray(st.players) && st.players.some((p:any)=> p?.playerId === wallet))
+            if (st.street === 'showdown' && Array.isArray(st.lastWinners) && st.lastWinners.length > 0 && Array.isArray(st.showdownInfo) && st.showdownInfo.length > 0) {
+              // remember last showdown state for robust handoff
+              lastShowdownRef.current = { tableId: st.tableId, handNumber: st.handNumber, ts: Date.now() }
+              try { lastShowdownStateRef.current = JSON.parse(JSON.stringify(st)) } catch { lastShowdownStateRef.current = st }
+            }
             if (amParticipant && st.street === 'showdown' && Array.isArray(st.lastWinners) && st.lastWinners.length > 0 && Array.isArray(st.showdownInfo) && st.showdownInfo.length > 0) {
               const winnersEnriched = (st.lastWinners || []).map((w:any)=> ({ ...w, displayName: nameOf(w.playerId) }))
               const showdownEnriched = (st.showdownInfo || []).map((s:any)=> ({ ...s, displayName: nameOf(s.playerId) }))
@@ -271,7 +278,19 @@ const [showEmoji, setShowEmoji] = useState(false)
         try {
           const st = (hand && hand[0]) || myTable
           const amParticipant = !!(st && st.players && Array.isArray(st.players) && st.players.some((p:any)=> p?.playerId === wallet))
-          if (amParticipant && overlayStateRef.current !== 'visible') {
+          if (!amParticipant) return
+          // If overlay not visible, use last cached showdown state (race/lagsafe)
+          if (overlayStateRef.current !== 'visible') {
+            const snap = lastShowdownStateRef.current
+            if (snap && lastShowdownRef.current && (Date.now() - lastShowdownRef.current.ts) < 8000) {
+              try {
+                const winnersEnriched = (snap.lastWinners || []).map((w:any)=> ({ ...w, displayName: nameOf(w.playerId) }))
+                const showdownEnriched = (snap.showdownInfo || []).map((s:any)=> ({ ...s, displayName: nameOf(s.playerId) }))
+                const holesByPlayer: Record<string, any[]|null> = {}
+                try { (snap.players||[]).forEach((p:any)=> { holesByPlayer[p.playerId] = p.hole || null }) } catch {}
+                sessionStorage.setItem('pg_last_match', JSON.stringify({ tableId: snap.tableId, handNumber: snap.handNumber, community: snap.community||[], holesByPlayer, winners: winnersEnriched, showdownInfo: showdownEnriched, you: wallet }))
+              } catch {}
+            }
             window.location.hash = '#/summary'
           }
         } catch {}
