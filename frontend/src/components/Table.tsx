@@ -184,7 +184,8 @@ const [showEmoji, setShowEmoji] = useState(false)
           const st = mine
           // Failsafe: sobald echter Showdown mit Winners sichtbar ist, Summary-Daten in Session speichern
           try {
-            if (st.street === 'showdown' && Array.isArray(st.lastWinners) && st.lastWinners.length > 0 && Array.isArray(st.showdownInfo) && st.showdownInfo.length > 0) {
+            const amParticipant = !!(st.players && Array.isArray(st.players) && st.players.some((p:any)=> p?.playerId === wallet))
+            if (amParticipant && st.street === 'showdown' && Array.isArray(st.lastWinners) && st.lastWinners.length > 0 && Array.isArray(st.showdownInfo) && st.showdownInfo.length > 0) {
               const winnersEnriched = (st.lastWinners || []).map((w:any)=> ({ ...w, displayName: nameOf(w.playerId) }))
               const showdownEnriched = (st.showdownInfo || []).map((s:any)=> ({ ...s, displayName: nameOf(s.playerId) }))
               const holesByPlayer: Record<string, any[]|null> = {}
@@ -252,10 +253,14 @@ const [showEmoji, setShowEmoji] = useState(false)
         } catch {}
       }
       if (m?.type === 'tournament' && m.payload?.event === 'hu_postmatch') {
-        // Falls ausnahmsweise kein Overlay sichtbar wurde, gehe direkt zur Summary mit der zuletzt gespeicherten Hand
-        if (overlayStateRef.current !== 'visible') {
-          try { window.location.hash = '#/summary' } catch {}
-        }
+        // Nur Teilnehmer navigieren zur Summary, Spectators nicht
+        try {
+          const st = (hand && hand[0]) || myTable
+          const amParticipant = !!(st && st.players && Array.isArray(st.players) && st.players.some((p:any)=> p?.playerId === wallet))
+          if (amParticipant && overlayStateRef.current !== 'visible') {
+            window.location.hash = '#/summary'
+          }
+        } catch {}
       }
       if ((m as any)?.type === 'emoji') {
         try {
