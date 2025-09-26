@@ -36,7 +36,7 @@ export default function TableView({ wallet, tableId }: { wallet?: string, tableI
   const [chatOpen, setChatOpen] = useState<boolean>(false)
   const [chatLines, setChatLines] = useState<{ts:number,text:string,tableId:string|null}[]>([])
   const [chatInput, setChatInput] = useState<string>('')
-  const [toast, setToast] = useState<string>('')
+  const [toast] = useState<string>('')
   const [floatTexts, setFloatTexts] = useState<Array<{ id:string; text:string; x:number; y:number; size?:number }>>([])
   const [dealFx, setDealFx] = useState<Array<{ id:string; x:number; y:number; rot:number }>>([])
   const [stageAnimKey, setStageAnimKey] = useState<number>(0)
@@ -376,8 +376,12 @@ const [showEmoji, setShowEmoji] = useState(false)
         }
       }
       if (m?.type === 'chat' && m.payload?.timestamp && m.payload?.message) {
+        try {
+          const currId = (myTable?.tableId) || (hand && hand[0]?.tableId) || renderTables[0]?.tableId || null
+          if (!m.payload.tableId || (currId && m.payload.tableId === currId)) {
         setChatLines((prev)=> [{ ts: m.payload.timestamp, text: m.payload.message, tableId: (m.payload.tableId ?? null) }, ...prev].slice(0, 60))
-        setToast(m.payload.message); setTimeout(()=> setToast(''), 1800)
+          }
+        } catch {}
       }
       
     }, (status)=>{ setWsStatus(status) })
@@ -913,7 +917,7 @@ const [showEmoji, setShowEmoji] = useState(false)
     addFloat(emoji, 32, 76, 28)
     // broadcast to other clients via WS
     try {
-      const tId = renderTables[0]?.tableId || (hand && hand[0]?.tableId)
+      const tId = (myTable?.tableId) || (hand && hand[0]?.tableId) || renderTables[0]?.tableId
       ;(window as any).pg_ws_send && (window as any).pg_ws_send({ type:'emoji', tableId: tId, emoji })
     } catch {}
     if (seatId) {
@@ -1234,7 +1238,7 @@ const [showEmoji, setShowEmoji] = useState(false)
           <div className="stage-chip">
             <span>Street:</span>
             <strong>{street ?? '-'}</strong>
-          </div>
+      </div>
           <div className="stage-chip">
             <span>Pot:</span>
             <strong>{pot}</strong>
