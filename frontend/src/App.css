@@ -911,7 +911,7 @@ button:focus-visible { outline: 2px solid #ffd54f; outline-offset: 2px; }
   .btn-success,
   .btn-primary,
   .btn-danger,
-  .btn-check { min-height: 46px; padding: 10px 16px; }
+  .btn-check { min-height: 54px; padding: 12px 18px; font-size: 16px; }
   .emoji-btn { transform: scale(1.1); }
   .chat-panel { right: 10px; bottom: 10px; width: 86vw; max-height: 24vh; }
   .hud { width: 86vw; }
