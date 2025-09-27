@@ -415,14 +415,16 @@ app.get("/hu/status/:wallet", (req, res) => {
 });
 
 app.get("/hu/leaderboard", (_req, res) => {
-  const rows = Array.from(huLeaderboard.entries()).map(([wallet, v]) => ({
-    playerId: wallet,
-    displayName: resolveDisplayName(wallet),
+  const rows = Array.from(huLeaderboard.entries()).map(([pid, v]) => ({
+    playerId: pid,
+    displayName: resolveDisplayName(pid),
     wins: v.wins,
     matches: v.matches,
   }));
-  rows.sort((a, b) => b.wins - a.wins || b.matches - a.matches);
-  res.json(rows.slice(0, 50));
+  // Join with ELO map so die Anzeige nicht bei 1500 stehen bleibt
+  const enriched = rows.map(r => ({ ...r, elo: getElo(r.playerId) }))
+  enriched.sort((a, b) => b.elo - a.elo || b.wins - a.wins || b.matches - a.matches)
+  res.json(enriched.slice(0, 50));
 });
 app.get("/hu/elo", (_req, res) => {
   const rows = Array.from(huElo.entries()).map(([playerId, rating]) => ({ playerId, rating }));
