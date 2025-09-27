@@ -888,8 +888,27 @@ const [showEmoji, setShowEmoji] = useState(false)
   useEffect(() => {
     if (renderTables.length > 0) { hadTableRef.current = true; return }
     if (!hadTableRef.current || renderTables.length !== 0) return
-    // no redirect anymore
-    hadTableRef.current = false
+    // If table vanished right after a real showdown, fail-safe navigate to summary using last cached showdown state
+    try { if (redirectTimerRef.current) { clearTimeout(redirectTimerRef.current) } } catch {}
+    redirectTimerRef.current = setTimeout(() => {
+      try {
+        const recent = lastShowdownRef.current && (Date.now() - lastShowdownRef.current.ts) < 8000
+        const snap = lastShowdownStateRef.current
+        const st: any = hand && hand[0]
+        const amParticipant = !!(st && st.players && Array.isArray(st.players) && st.players.some((p:any)=> p?.playerId === wallet))
+        if (recent && snap && amParticipant && overlayStateRef.current !== 'visible') {
+          try {
+            const winnersEnriched = (snap.lastWinners || []).map((w:any)=> ({ ...w, displayName: nameOf(w.playerId) }))
+            const showdownEnriched = (snap.showdownInfo || []).map((s:any)=> ({ ...s, displayName: nameOf(s.playerId) }))
+            const holesByPlayer: Record<string, any[]|null> = {}
+            try { (snap.players||[]).forEach((p:any)=> { holesByPlayer[p.playerId] = p.hole || null }) } catch {}
+            sessionStorage.setItem('pg_last_match', JSON.stringify({ tableId: snap.tableId, handNumber: snap.handNumber, community: snap.community||[], holesByPlayer, winners: winnersEnriched, showdownInfo: showdownEnriched, you: wallet }))
+          } catch {}
+          window.location.hash = '#/summary'
+        }
+      } catch {}
+      hadTableRef.current = false
+    }, 600)
     return () => { try { if (redirectTimerRef.current) clearTimeout(redirectTimerRef.current) } catch {} }
   }, [renderTables.length, showOverlay])
 
