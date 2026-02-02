@@ -1,108 +1,39 @@
 /**
- * POKERGODS Bot Arena - Bot Module
- * Main entry point for bot-related functionality
+ * POKERGODS Bot Arena - Main Module
+ * Simple Heads-Up SNG System
  */
 
 // Re-export types
 export * from './types.js'
 
-// Re-export API key functions
-export {
-  generateApiKey,
-  hashKey,
-  validateApiKey,
-  hasPermission,
-  getBotIdFromKey,
-  revokeApiKey,
-  revokeAllKeysForBot,
-  listKeysForBot,
-  getApiKeyStats,
-  loadApiKeys,
-  requireBotAuth,
-  requirePermission,
-} from './apiKeys.js'
+// Re-export API Keys
+export * from './apiKeys.js'
 
-// Re-export registry functions
-export {
-  registerBot,
-  getBot,
-  getBotByName,
-  listBots,
-  updateBotStatus,
-  deleteBot,
-  updateBotStats,
-  getBotElo,
-  setBotElo,
-  createSession,
-  getSession,
-  getSessionByBotId,
-  pingSession,
-  setSessionTable,
-  endSession,
-  getActiveSessions,
-  getConnectedBotCount,
-  cleanupStaleSessions,
-  getLeaderboard,
-  loadBots,
-} from './registry.js'
+// Re-export Registry
+export * from './registry.js'
 
-// Re-export WebSocket functions
-export {
-  handleBotConnection,
-  setActionHandler,
-  sendToBot,
-  sendGameState,
-  sendActionRequired,
-  broadcastToBots,
-  isBotConnected,
-  getConnectedBotIds,
-  addSpectator,
-  broadcastToSpectators,
-  getSpectatorCount,
-} from './websocket.js'
+// Re-export WebSocket
+export * from './websocket.js'
 
-// Re-export tournament functions
-export {
-  createTournament,
-  scheduleDailyTournaments,
-  registerForTournament,
-  unregisterFromTournament,
-  tickTournaments,
-  finishTournament,
-  getTournament,
-  getUpcomingTournaments,
-  getActiveTournaments,
-  getRecentResults,
-  getCurrentBlinds,
-  loadTournaments,
-} from './tournament.js'
+// Re-export Matchmaking (selective to avoid Card conflict)
+export { 
+  joinQueue, 
+  leaveQueue, 
+  getQueueStatus, 
+  getQueuePosition,
+  handleBotAction,
+  getMatch,
+  getBotMatch,
+  getActiveMatches,
+  isInMatch,
+} from './matchmaking.js'
+export type { Match, HandState } from './matchmaking.js'
 
-// Re-export cash games functions
-export {
-  createCashTable,
-  getCashTable,
-  listCashTables,
-  joinCashTable,
-  leaveCashTable,
-  getTableSpectatorView,
-  claimDailyChips,
-  getDailyClaimStatus,
-  getArenaStats,
-  incrementHandsPlayed,
-  loadCashGames,
-  STAKES,
-  type StakeLevel,
-  type CashTable,
-  type TablePlayer,
-  type ArenaStats,
-} from './cashgames.js'
-
-// ============== Initialization ==============
-
+// Import for initialization
 import { loadApiKeys } from './apiKeys.js'
 import { loadBots } from './registry.js'
-import { loadTournaments, scheduleDailyTournaments } from './tournament.js'
-import { loadCashGames } from './cashgames.js'
+import { setActionHandler } from './websocket.js'
+import { handleBotAction } from './matchmaking.js'
 
 /**
  * Initialize the bot module
@@ -110,13 +41,12 @@ import { loadCashGames } from './cashgames.js'
 export async function initBotModule(): Promise<void> {
   console.log('[bot] Initializing bot module...')
   
+  // Load persisted data
   await loadApiKeys()
   await loadBots()
-  await loadTournaments()
-  await loadCashGames()
   
-  // Schedule daily tournaments
-  scheduleDailyTournaments()
+  // Connect action handler
+  setActionHandler(handleBotAction)
   
   console.log('[bot] Bot module initialized')
 }

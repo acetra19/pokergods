@@ -18,14 +18,6 @@ import {
   handleBotConnection, 
   addSpectator, 
   broadcastToSpectators,
-  setActionHandler,
-  sendGameState,
-  sendActionRequired,
-  getBot,
-  isBotConnected,
-  getConnectedBotIds,
-  getUpcomingTournaments,
-  getActiveTournaments,
 } from "./bot/index.js";
 import { botRouter } from "./bot/routes.js";
 

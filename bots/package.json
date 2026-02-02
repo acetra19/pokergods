@@ -1,0 +1,11 @@
+{
+  "name": "pokergods-test-bots",
+  "version": "1.0.0",
+  "description": "Test bots for POKERGODS Bot Arena",
+  "scripts": {
+    "bot1": "node simple-bot.js"
+  },
+  "dependencies": {
+    "ws": "^8.18.0"
+  }
+}

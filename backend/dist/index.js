@@ -12,7 +12,7 @@ import { createHash, randomBytes } from "node:crypto";
 import { promises as fs } from "node:fs";
 import path from "node:path";
 // Bot Arena imports
-import { initBotModule, handleBotConnection, addSpectator, broadcastToSpectators, setActionHandler, sendGameState, sendActionRequired, getBot, isBotConnected, getConnectedBotIds, getUpcomingTournaments, getActiveTournaments, } from "./bot/index.js";
+import { initBotModule, handleBotConnection, addSpectator, broadcastToSpectators, } from "./bot/index.js";
 import { botRouter } from "./bot/routes.js";
 const app = express();
 app.use(cors());

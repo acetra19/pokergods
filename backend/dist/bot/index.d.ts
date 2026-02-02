@@ -1,13 +1,13 @@
 /**
- * POKERGODS Bot Arena - Bot Module
- * Main entry point for bot-related functionality
+ * POKERGODS Bot Arena - Main Module
+ * Simple Heads-Up SNG System
  */
 export * from './types.js';
-export { generateApiKey, hashKey, validateApiKey, hasPermission, getBotIdFromKey, revokeApiKey, revokeAllKeysForBot, listKeysForBot, getApiKeyStats, loadApiKeys, requireBotAuth, requirePermission, } from './apiKeys.js';
-export { registerBot, getBot, getBotByName, listBots, updateBotStatus, deleteBot, updateBotStats, getBotElo, setBotElo, createSession, getSession, getSessionByBotId, pingSession, setSessionTable, endSession, getActiveSessions, getConnectedBotCount, cleanupStaleSessions, getLeaderboard, loadBots, } from './registry.js';
-export { handleBotConnection, setActionHandler, sendToBot, sendGameState, sendActionRequired, broadcastToBots, isBotConnected, getConnectedBotIds, addSpectator, broadcastToSpectators, getSpectatorCount, } from './websocket.js';
-export { createTournament, scheduleDailyTournaments, registerForTournament, unregisterFromTournament, tickTournaments, finishTournament, getTournament, getUpcomingTournaments, getActiveTournaments, getRecentResults, getCurrentBlinds, loadTournaments, } from './tournament.js';
-export { createCashTable, getCashTable, listCashTables, joinCashTable, leaveCashTable, getTableSpectatorView, claimDailyChips, getDailyClaimStatus, getArenaStats, incrementHandsPlayed, loadCashGames, STAKES, type StakeLevel, type CashTable, type TablePlayer, type ArenaStats, } from './cashgames.js';
+export * from './apiKeys.js';
+export * from './registry.js';
+export * from './websocket.js';
+export { joinQueue, leaveQueue, getQueueStatus, getQueuePosition, handleBotAction, getMatch, getBotMatch, getActiveMatches, isInMatch, } from './matchmaking.js';
+export type { Match, HandState } from './matchmaking.js';
 /**
  * Initialize the bot module
  */

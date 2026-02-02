@@ -40,7 +40,7 @@ export function createCashTable(options) {
         bigBlind: stake.bb,
         minBuyIn: stake.bb * 20,
         maxBuyIn: stake.bb * 200,
-        maxPlayers: options.maxPlayers ?? 6,
+        maxPlayers: options.maxPlayers ?? 2, // Heads-Up only!
         players: [],
         status: 'waiting',
         handNumber: 0,
@@ -312,7 +312,7 @@ export function ensureDefaultTables() {
             createCashTable({
                 name: `${stake.name} - Table 1`,
                 stakes: level,
-                maxPlayers: 6,
+                // Heads-Up only! (maxPlayers defaults to 2)
             });
         }
     }

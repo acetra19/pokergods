@@ -1,6 +1,6 @@
 /**
  * POKERGODS Bot Arena - API Routes
- * Express routes for bot management
+ * Simple Heads-Up SNG System with Leaderboard
  */
 export declare const botRouter: import("express-serve-static-core").Router;
 //# sourceMappingURL=routes.d.ts.map
