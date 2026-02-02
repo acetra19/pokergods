@@ -12,6 +12,23 @@ import { createHash, randomBytes } from "node:crypto";
 import { promises as fs } from "node:fs";
 import path from "node:path";
 
+// Bot Arena imports
+import { 
+  initBotModule, 
+  handleBotConnection, 
+  addSpectator, 
+  broadcastToSpectators,
+  setActionHandler,
+  sendGameState,
+  sendActionRequired,
+  getBot,
+  isBotConnected,
+  getConnectedBotIds,
+  getUpcomingTournaments,
+  getActiveTournaments,
+} from "./bot/index.js";
+import { botRouter } from "./bot/routes.js";
+
 declare global {
   // eslint-disable-next-line no-var
   var __pg_admin_jwt: string | undefined;
@@ -520,6 +537,10 @@ app.get("/hu/elo", (_req, res) => {
   res.json(rows.slice(0, 50));
 });
 
+// ============== Bot Arena API Routes ==============
+app.use('/api/v1/bot', express.json(), botRouter);
+app.use('/api/v1/bots', express.json(), botRouter);
+
 const server = http.createServer(app);
 const wss = new WebSocketServer({ server });
 
@@ -543,7 +564,21 @@ type ServerMessage =
   | { type: "chat"; payload: { tableId: string | null; message: string; timestamp: number } }
   | { type: "emoji"; payload: { tableId: string; from: string; emoji: string; ts: number } };
 
-wss.on("connection", (ws: WebSocket) => {
+wss.on("connection", (ws: WebSocket, request) => {
+  // Check if this is a bot connection (has apiKey in URL)
+  const url = new URL(request.url ?? '', `http://localhost`);
+  const apiKey = url.searchParams.get('apiKey');
+  const isBot = url.pathname === '/api/v1/bot/connect' || !!apiKey;
+  
+  if (isBot) {
+    // Handle bot connection via bot module
+    handleBotConnection(ws, request);
+    return;
+  }
+  
+  // Human/spectator connection - add to spectator list
+  addSpectator(ws);
+  
   const welcome: ServerMessage = { type: "welcome", serverTime: Date.now() };
   ws.send(JSON.stringify(welcome));
 
@@ -1026,10 +1061,19 @@ app.post("/admin/hu/setStacks", express.json(), (req, res) => {
 
 // Listen on Railway PORT or fallback to 8080 locally
 const PORT = Number(process.env.PORT || 8080);
-server.listen(PORT, () => {
+server.listen(PORT, async () => {
   // eslint-disable-next-line no-console
   console.log("server listening on", PORT);
-  loadHuData().catch(() => {});
+  
+  // Initialize legacy HU data
+  await loadHuData().catch(() => {});
+  
+  // Initialize Bot Arena module
+  await initBotModule().catch((e) => {
+    console.error("Failed to initialize bot module:", e);
+  });
+  
+  console.log("POKERGODS Bot Arena ready!");
 });
 
 // --- Persistence (JSON on disk) ---

@@ -9,3 +9,10 @@ backend/.env
 frontend/.env
 .DS_Store
 Thumbs.db
+
+# Runtime data (bot arena)
+backend/data/api_keys.json
+backend/data/bots.json
+backend/data/cash_tables.json
+backend/data/arena_stats.json
+backend/data/tournaments.json

@@ -11,6 +11,9 @@ import { HUManager } from "./hu/manager.js";
 import { createHash, randomBytes } from "node:crypto";
 import { promises as fs } from "node:fs";
 import path from "node:path";
+// Bot Arena imports
+import { initBotModule, handleBotConnection, addSpectator, broadcastToSpectators, setActionHandler, sendGameState, sendActionRequired, getBot, isBotConnected, getConnectedBotIds, getUpcomingTournaments, getActiveTournaments, } from "./bot/index.js";
+import { botRouter } from "./bot/routes.js";
 const app = express();
 app.use(cors());
 // JSON-Parser nur noch gezielt pro Route einsetzen, um Parse-Fehler bei Nicht‑JSON‑Bodies zu vermeiden
@@ -549,6 +552,9 @@ app.get("/hu/elo", (_req, res) => {
     rows.sort((a, b) => b.rating - a.rating);
     res.json(rows.slice(0, 50));
 });
+// ============== Bot Arena API Routes ==============
+app.use('/api/v1/bot', express.json(), botRouter);
+app.use('/api/v1/bots', express.json(), botRouter);
 const server = http.createServer(app);
 const wss = new WebSocketServer({ server });
 // Track online wallets (any page with an active WS connection and identify)
@@ -566,7 +572,18 @@ function decOnline(wallet) {
         walletConnCount.set(wallet, n);
 }
 function onlineCount() { return walletConnCount.size; }
-wss.on("connection", (ws) => {
+wss.on("connection", (ws, request) => {
+    // Check if this is a bot connection (has apiKey in URL)
+    const url = new URL(request.url ?? '', `http://localhost`);
+    const apiKey = url.searchParams.get('apiKey');
+    const isBot = url.pathname === '/api/v1/bot/connect' || !!apiKey;
+    if (isBot) {
+        // Handle bot connection via bot module
+        handleBotConnection(ws, request);
+        return;
+    }
+    // Human/spectator connection - add to spectator list
+    addSpectator(ws);
     const welcome = { type: "welcome", serverTime: Date.now() };
     ws.send(JSON.stringify(welcome));
     ws.on("message", (raw) => {
@@ -1118,10 +1135,16 @@ app.post("/admin/hu/setStacks", express.json(), (req, res) => {
 });
 // Listen on Railway PORT or fallback to 8080 locally
 const PORT = Number(process.env.PORT || 8080);
-server.listen(PORT, () => {
+server.listen(PORT, async () => {
     // eslint-disable-next-line no-console
     console.log("server listening on", PORT);
-    loadHuData().catch(() => { });
+    // Initialize legacy HU data
+    await loadHuData().catch(() => { });
+    // Initialize Bot Arena module
+    await initBotModule().catch((e) => {
+        console.error("Failed to initialize bot module:", e);
+    });
+    console.log("POKERGODS Bot Arena ready!");
 });
 // --- Persistence (JSON on disk) ---
 const DATA_DIR = path.join(process.cwd(), 'data');
