@@ -1,5 +1,7 @@
 import { useEffect, useState } from 'react'
-import { connectWS, huStatus, huJoin, huLeave, huBotJoin, huBotStatus, huLeaderboard, huElo, getProfile } from '../api'
+import { connectWS, huStatus, huJoin, huLeave, huBotJoin, huBotStatus, huLeaderboard, huElo, huPostMatchLock, getProfile } from '../api'
+
+const POST_MATCH_LOCK_SEC = 10
 
 export default function HULobby({ wallet, onMatch }: { wallet: string; onMatch: (tableId: string) => void }) {
   const [queueSize, setQueueSize] = useState(0)
@@ -9,6 +11,7 @@ export default function HULobby({ wallet, onMatch }: { wallet: string; onMatch: 
   const [hint, setHint] = useState('')
   const [displayName, setDisplayName] = useState('')
   const [online, setOnline] = useState(0)
+  const [lockUntilMs, setLockUntilMs] = useState<number | null>(null)
 
   useEffect(() => {
     const ws = connectWS((m: any) => {
@@ -27,6 +30,10 @@ export default function HULobby({ wallet, onMatch }: { wallet: string; onMatch: 
         setOnline(s.online ?? 0)
         if (s.matchTableId) onMatch(s.matchTableId)
       } catch {}
+      try {
+        const lock = await huPostMatchLock(wallet)
+        setLockUntilMs(lock.locked && typeof lock.lockedUntilMs === 'number' ? lock.lockedUntilMs : null)
+      } catch {}
       try { setLeaders(await huLeaderboard()) } catch {}
       try {
         const e = await huElo()
@@ -38,9 +45,19 @@ export default function HULobby({ wallet, onMatch }: { wallet: string; onMatch: 
       } catch {}
     }
     poll()
-    const id = setInterval(poll, 3000)
+    const id = setInterval(poll, 1000)
     return () => { ws.close(); clearInterval(id) }
   }, [wallet, onMatch])
+
+  const [tick, setTick] = useState(0)
+  useEffect(() => {
+    if (lockUntilMs == null || Date.now() >= lockUntilMs) return
+    const id = setInterval(() => setTick((t) => t + 1), 1000)
+    return () => clearInterval(id)
+  }, [lockUntilMs])
+  const nowMs = Date.now()
+  const locked = lockUntilMs != null && nowMs < lockUntilMs
+  const lockRemainingSec = locked ? Math.max(0, Math.ceil((lockUntilMs - nowMs) / 1000)) : 0
 
   useEffect(() => {
     let dead = false
@@ -57,8 +74,13 @@ export default function HULobby({ wallet, onMatch }: { wallet: string; onMatch: 
       await huJoin(wallet)
       setJoined(true)
       setHint('Waiting for opponent...')
-    } catch {
-      setHint('Join failed. Please retry.')
+    } catch (e: any) {
+      if (e?.locked && typeof e?.lockedUntilMs === 'number') {
+        setLockUntilMs(e.lockedUntilMs)
+        setHint(`Please wait ${POST_MATCH_LOCK_SEC}s before next match.`)
+      } else {
+        setHint('Join failed. Please retry.')
+      }
     }
   }
 
@@ -96,10 +118,16 @@ export default function HULobby({ wallet, onMatch }: { wallet: string; onMatch: 
             <div style={{ fontSize: 13, opacity: 0.7, marginBottom: 16 }}>
               {queueSize > 0 ? `${queueSize} player${queueSize > 1 ? 's' : ''} waiting` : 'No one in queue yet - be the first!'}
             </div>
+            {locked && (
+              <div style={{ fontSize: 13, color: '#fbbf24', marginBottom: 10 }}>
+                Next match in {lockRemainingSec}s
+              </div>
+            )}
             <button
               className="btn btn-primary"
               style={{ padding: '14px 40px', fontSize: 16, fontWeight: 800, borderRadius: 12 }}
               onClick={handleJoin}
+              disabled={locked}
             >
               Start Matchmaking
             </button>
@@ -171,13 +199,21 @@ export default function HULobby({ wallet, onMatch }: { wallet: string; onMatch: 
         <button
           className="btn"
           style={{ padding: '10px 28px', fontSize: 14, fontWeight: 700 }}
+          disabled={locked}
           onClick={async () => {
             try {
               await huBotJoin(wallet)
               setHint('Bot match starting...')
               const s: any = await huBotStatus(wallet)
               if (s?.matchTableId) onMatch(s.matchTableId)
-            } catch { setHint('Bot join failed. Please retry.') }
+            } catch (e: any) {
+              if (e?.locked && typeof e?.lockedUntilMs === 'number') {
+                setLockUntilMs(e.lockedUntilMs)
+                setHint(`Please wait ${POST_MATCH_LOCK_SEC}s before next match.`)
+              } else {
+                setHint('Bot join failed. Please retry.')
+              }
+            }
           }}
         >
           Play vs Bot

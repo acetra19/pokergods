@@ -42,6 +42,7 @@ export type SeatItemProps = {
   displayChipsRef: MutableRefObject<Record<string, number>>
   inRevealUIRef: MutableRefObject<boolean>
   committedRef: MutableRefObject<Record<string, number> | null>
+  foldAnimation?: boolean
 }
 
 function SeatItemInner({
@@ -50,6 +51,7 @@ function SeatItemInner({
   nowMs, street, anyAllIn, revealVillain, revealedCount, seatBloom, hand,
   profileNameCache, profileEpoch, setProfileEpoch,
   displayChipsRef, inRevealUIRef, committedRef,
+  foldAnimation = false,
 }: SeatItemProps) {
   const isActor = !!actionState && actionState.actorSeatIndex === seat.seatIndex
   const isHero = !!wallet && seat.playerId === wallet
@@ -180,7 +182,7 @@ function SeatItemInner({
           )}
         </div>
       ) : (
-        <div className="hole-wrap deal-in villain" style={{ marginTop: 6, display: 'flex', justifyContent: 'center', gap: 6 }}>
+        <div className={`hole-wrap deal-in villain${foldAnimation ? ' fold-slide' : ''}`} style={{ marginTop: 6, display: 'flex', justifyContent: 'center', gap: 6 }}>
           {(tablePlayer?.hole ?? player?.hole) ? (
             showHole
               ? (tablePlayer?.hole ?? player?.hole).map((c: any, i: number) => (
@@ -203,6 +205,7 @@ export const SeatItem = memo(SeatItemInner, (prev, next) => {
   const prevIsActor = !!prev.actionState && prev.actionState.actorSeatIndex === prev.seat.seatIndex
   const nextIsActor = !!next.actionState && next.actionState.actorSeatIndex === next.seat.seatIndex
   return (
+    prev.foldAnimation === next.foldAnimation &&
     prev.seat.playerId === next.seat.playerId &&
     prev.seat.seatIndex === next.seat.seatIndex &&
     JSON.stringify(prev.seatStyle) === JSON.stringify(next.seatStyle) &&

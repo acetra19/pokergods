@@ -210,10 +210,23 @@ export async function huStatus(wallet?: string) {
   return res.json()
 }
 
-export async function huJoin(wallet: string) {
-  const res = await fetch(`${BACKEND}/hu/join/${wallet}`, { method: 'POST' })
-  if (!res.ok) throw new Error('failed to join hu queue')
+export async function huPostMatchLock(wallet: string): Promise<{ locked: boolean; lockedUntilMs?: number }> {
+  const res = await fetch(`${BACKEND}/hu/post-match-lock/${encodeURIComponent(wallet)}`)
+  if (!res.ok) return { locked: false }
   return res.json()
+}
+
+export async function huJoin(wallet: string) {
+  const res = await fetch(`${BACKEND}/hu/join/${encodeURIComponent(wallet)}`, { method: 'POST' })
+  const body = await res.json().catch(() => ({}))
+  if (res.status === 403 && body.locked && typeof body.lockedUntilMs === 'number') {
+    const e = new Error('Post-match lock') as Error & { locked?: boolean; lockedUntilMs?: number }
+    e.locked = true
+    e.lockedUntilMs = body.lockedUntilMs
+    throw e
+  }
+  if (!res.ok) throw new Error('failed to join hu queue')
+  return body
 }
 
 export async function huLeave(wallet: string) {
@@ -224,9 +237,16 @@ export async function huLeave(wallet: string) {
 
 // Bot queue
 export async function huBotJoin(wallet: string) {
-  const res = await fetch(`${BACKEND}/hu/bot/join/${wallet}`, { method: 'POST' })
+  const res = await fetch(`${BACKEND}/hu/bot/join/${encodeURIComponent(wallet)}`, { method: 'POST' })
+  const body = await res.json().catch(() => ({}))
+  if (res.status === 403 && body.locked && typeof body.lockedUntilMs === 'number') {
+    const e = new Error('Post-match lock') as Error & { locked?: boolean; lockedUntilMs?: number }
+    e.locked = true
+    e.lockedUntilMs = body.lockedUntilMs
+    throw e
+  }
   if (!res.ok) throw new Error('failed to join bot queue')
-  return res.json()
+  return body
 }
 export async function huBotStatus(wallet: string) {
   const res = await fetch(`${BACKEND}/hu/bot/status/${wallet}`)

@@ -142,6 +142,18 @@ export function playCheck() {
   }
 }
 
+/** Very subtle sound when villain folds (card slide / muck) */
+export function playFold() {
+  if (debug) console.debug('[sound] playFold', { profile });
+  if (profile === 'subtle') {
+    beep(180, 40, 'sine', 0.008);
+    setTimeout(() => beep(140, 50, 'sine', 0.006), 60);
+  } else {
+    beep(200, 45, 'sine', 0.01);
+    setTimeout(() => beep(160, 55, 'sine', 0.008), 65);
+  }
+}
+
 export function playWin() {
   // dezentes kurzes Intervall
   if (debug) console.debug('[sound] playWin', { profile });

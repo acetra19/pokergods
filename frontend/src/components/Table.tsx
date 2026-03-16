@@ -2,9 +2,9 @@ import { useEffect, useMemo, useRef, useState, useCallback, type CSSProperties }
 import pgLogo from '../images/pokergods.png'
 import pgCover from '../images/pokergodscover.png'
 import type { TableState, BlindLevel } from '../types'
-import { getSeating, handState, handActionState, handAction, connectWS, getProfile, diagLog } from '../api'
+import { getSeating, handState, handActionState, handAction, connectWS, getProfile, diagLog, huBotJoin } from '../api'
 import { formatCardLabel } from '../utils/cards'
-import { playChip, playDeal, playFlop, playTurn, playRiver, playWin, resumeAudio, playWarnTick, playBankStart, playCheck, playLose, playOverlayCue, playShuffle, playClick } from '../utils/sound'
+import { playChip, playDeal, playFlop, playTurn, playRiver, playWin, resumeAudio, playWarnTick, playBankStart, playCheck, playLose, playOverlayCue, playShuffle, playClick, playFold } from '../utils/sound'
 import { SeatItem } from './SeatItem'
 
 const SOUND_COOLDOWN_MS: Record<string, number> = {
@@ -19,6 +19,7 @@ const SOUND_COOLDOWN_MS: Record<string, number> = {
   check: 200,
   overlayCue: 300,
   click: 120,
+  fold: 400,
 }
 
 const soundLastPlayed: Record<string, number> = {}
@@ -51,6 +52,7 @@ export default function TableView({ wallet, tableId }: { wallet?: string, tableI
   const audioAllowedRef = useRef<boolean>(false)
   const [overlayCooldown, setOverlayCooldown] = useState<boolean>(false)
   const [seatBloom, setSeatBloom] = useState<Record<string, number>>({})
+  const [villainFoldPlayerId, setVillainFoldPlayerId] = useState<string | null>(null)
   const [tableZoom, setTableZoom] = useState(() => {
     try {
       const z = localStorage.getItem('pg_table_zoom')
@@ -423,7 +425,12 @@ const [showEmoji, setShowEmoji] = useState(false)
             let floatStyle = 'action-check'
             if (act === 'check') { label = `${nm} checks`; floatStyle = 'action-check' }
             else if (act === 'call') { label = `${nm} calls${amt ? ' ' + amt : ''}`; floatStyle = 'action-call' }
-            else if (act === 'fold') { label = `${nm} folds`; floatStyle = 'action-fold' }
+            else if (act === 'fold') {
+              label = `${nm} folds`; floatStyle = 'action-fold'
+              setVillainFoldPlayerId(p.playerId)
+              if (audioAllowedRef.current) playSoundCore('fold', () => { resumeAudio(); playFold() })
+              setTimeout(() => setVillainFoldPlayerId(null), 700)
+            }
             else if (act === 'bet') { label = `${nm} bets ${amt ?? ''}`; floatStyle = 'action-bet' }
             else if (act === 'raise') { label = `${nm} raises to ${amt ?? ''}`; floatStyle = 'action-raise' }
             else { label = `${nm} ${act}` }
@@ -1464,6 +1471,7 @@ const [showEmoji, setShowEmoji] = useState(false)
                 displayChipsRef={displayChipsRef}
                 inRevealUIRef={inRevealUIRef}
                 committedRef={committedRef}
+                foldAnimation={seat.playerId === villainFoldPlayerId}
               />
             )
             })}
@@ -1688,17 +1696,18 @@ const [showEmoji, setShowEmoji] = useState(false)
                       <button className="btn" onClick={()=>{
                         try { (window as any).location.assign('/'); } catch {}
                       }}>Quit</button>
-                      <button className="btn btn-success" onClick={()=>{
-                        // user explicitly opts into next match: enqueue vs bot
+                      <button className="btn btn-success" onClick={async ()=>{
                         try {
-                          fetch(`${import.meta.env.VITE_BACKEND_URL ?? 'http://localhost:8080'}/hu/bot/join/${encodeURIComponent(wallet||'')}`, { method:'POST' }).catch(()=>{})
-                        } catch {}
-        setOverlayCooldown(true)
-        setTimeout(()=> setOverlayCooldown(false), 260)
-        setShowOverlay(false);
-                        overlayStateRef.current='idle';
-                        overlayHoldUntilMsRef.current=0;
-                        try { sessionStorage.setItem('pg_open_leader_once', '1') } catch {}
+                          await huBotJoin(wallet || '')
+                          setOverlayCooldown(true)
+                          setTimeout(()=> setOverlayCooldown(false), 260)
+                          setShowOverlay(false)
+                          overlayStateRef.current = 'idle'
+                          overlayHoldUntilMsRef.current = 0
+                          try { sessionStorage.setItem('pg_open_leader_once', '1') } catch {}
+                        } catch (e: any) {
+                          if (e?.locked) { window.location.hash = '#/hu' }
+                        }
                       }}>Next Match</button>
                       <button className="btn btn-primary" onClick={()=>{
                         try { window.location.hash = '#/hu' } catch {}

@@ -380,6 +380,18 @@
 }
 .blind-badge.bb { background: radial-gradient(circle at 35% 35%, #e6f2ff, #a9cdff); color:#071c42; left: auto; right: -10px; }
 .seat .hole-wrap { position: relative; z-index: 3; }
+/* Villain fold: minimal slide/muck animation (poker-software style) */
+.seat .hole-wrap.villain.fold-slide {
+  animation: foldSlide 500ms ease-in forwards;
+}
+.seat .hole-wrap.villain.fold-slide .card-sm,
+.seat .hole-wrap.villain.fold-slide .card-wrap { pointer-events: none; }
+@keyframes foldSlide {
+  to {
+    transform: translateX(72px) scale(0.88);
+    opacity: 0;
+  }
+}
 .seat .time-pill {
   position: absolute;
   top: 6px;

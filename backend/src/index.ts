@@ -369,14 +369,27 @@ app.post("/hand/action", express.json(), (req, res) => {
 // Heads-up endpoints
 app.post("/hu/join/:wallet", (req, res) => {
   const { wallet } = req.params;
-  // If wallet was in post-match hold, clear it now
+  const lockEnd = postMatchHold.get(wallet);
+  if (lockEnd != null && Date.now() < lockEnd) {
+    res.status(403).json({ locked: true, lockedUntilMs: lockEnd });
+    return;
+  }
   try { postMatchHold.delete(wallet); } catch {}
   const s = hu.join(wallet);
-  // If two or more players are queued and this wallet isn't already in a match, start immediately
   if ((s.queueSize ?? 0) >= 2 && !s.matchTableId) {
     tryStartHuMatch();
   }
   res.json(s);
+});
+
+app.get("/hu/post-match-lock/:wallet", (req, res) => {
+  const { wallet } = req.params;
+  const lockEnd = postMatchHold.get(wallet);
+  if (lockEnd == null || Date.now() >= lockEnd) {
+    res.json({ locked: false });
+    return;
+  }
+  res.json({ locked: true, lockedUntilMs: lockEnd });
 });
 
 // Profiles CRUD
@@ -407,7 +420,12 @@ app.post("/hu/leave/:wallet", (req, res) => {
 const BOT_ID = 'BOT';
 app.post("/hu/bot/join/:wallet", (req, res) => {
   const { wallet } = req.params;
-  // If already mapped, return status directly
+  const lockEnd = postMatchHold.get(wallet);
+  if (lockEnd != null && Date.now() < lockEnd) {
+    res.status(403).json({ locked: true, lockedUntilMs: lockEnd });
+    return;
+  }
+  try { postMatchHold.delete(wallet); } catch {}
   const st = hu.status(wallet);
   if (st.matchTableId) { res.json(st); return; }
   // Create table with bot and start engine immediately
@@ -763,8 +781,9 @@ function seedToRng(hexSeed: string): () => number {
 const postShowdownHoldUntilMs = new Map<string, number>();
 // Provably-fair commit/reveal per table and hand
 const fairnessByTable = new Map<string, { commit: string; serverSeed: string; clientSeed?: string }>();
-// Post-match hold: players who finished a HU match and should not auto-requeue
-const postMatchHold = new Set<string>();
+// Post-match hold: 30s lock before player can queue or join bot again (wallet -> lock end timestamp ms)
+const POST_MATCH_LOCK_MS = 10_000;
+const postMatchHold = new Map<string, number>();
 
 // --- Simple profile storage (persist to data/profiles.json) ---
 type Profile = { username: string; avatarUrl?: string };
@@ -1145,8 +1164,8 @@ setInterval(() => {
           row.matches += 1;
           if (winners.includes(pid)) row.wins += 1;
           huLeaderboard.set(display, row);
-          // move players to post-match hold; explicit user action required to requeue
-          postMatchHold.add(pid);
+          // 30s lock before they can queue or join bot again
+          postMatchHold.set(pid, Date.now() + POST_MATCH_LOCK_MS);
         });
         // ELO update (assume HU: two players)
         if (players.length === 2 && winners.length >= 1) {
