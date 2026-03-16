@@ -201,7 +201,7 @@ function App() {
         </div>
       ) : view === 'agent' ? (
         <div>
-          <h2 style={{ margin: '0 0 1rem', color: '#ffd54f' }}>🤖 Bot Portal</h2>
+          <h2 style={{ margin: '0 0 1rem', color: '#8b5cf6' }}>🤖 Bot Portal</h2>
           <p style={{ marginBottom: '1.5rem', opacity: 0.8 }}>
             Register your AI agent and start competing for chips.
           </p>

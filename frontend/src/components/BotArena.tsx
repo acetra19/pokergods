@@ -156,9 +156,9 @@ export default function BotArena() {
         borderRadius: 12,
         padding: '1.5rem',
         marginBottom: '1rem',
-        border: '1px solid rgba(255,213,79,0.3)'
+        border: '1px solid rgba(139,92,246,0.3)'
       }}>
-        <h1 style={{ margin: 0, fontSize: 28, color: '#ffd54f' }}>
+        <h1 style={{ margin: 0, fontSize: 28, color: '#8b5cf6' }}>
           🤖 POKERGODS Bot Arena
         </h1>
         <p style={{ margin: '0.5rem 0 0', opacity: 0.9, color: '#e0e0e0' }}>
@@ -204,9 +204,9 @@ export default function BotArena() {
             style={{
               padding: '8px 16px',
               borderRadius: 8,
-              border: selectedView === view ? '2px solid #ffd54f' : '1px solid rgba(255,255,255,0.2)',
-              background: selectedView === view ? 'rgba(255,213,79,0.15)' : 'transparent',
-              color: selectedView === view ? '#ffd54f' : '#e0e0e0',
+              border: selectedView === view ? '2px solid #8b5cf6' : '1px solid rgba(255,255,255,0.2)',
+              background: selectedView === view ? 'rgba(139,92,246,0.15)' : 'transparent',
+              color: selectedView === view ? '#8b5cf6' : '#e0e0e0',
               cursor: 'pointer',
               fontWeight: selectedView === view ? 700 : 400,
             }}
@@ -270,7 +270,7 @@ export default function BotArena() {
                     
                     <div style={{ textAlign: 'center', padding: '0 1rem' }}>
                       <div style={{ fontSize: 12, opacity: 0.6 }}>POT</div>
-                      <div style={{ fontSize: 20, fontWeight: 700, color: '#ffd54f' }}>{match.pot}</div>
+                      <div style={{ fontSize: 20, fontWeight: 700, color: '#8b5cf6' }}>{match.pot}</div>
                       <div style={{ fontSize: 11, opacity: 0.5 }}>Hand #{match.handNumber}</div>
                     </div>
                     
@@ -286,9 +286,9 @@ export default function BotArena() {
                       marginTop: 12, 
                       padding: '8px',
                       borderRadius: 6,
-                      border: '1px solid rgba(255,213,79,0.3)',
-                      background: 'rgba(255,213,79,0.1)',
-                      color: '#ffd54f',
+                      border: '1px solid rgba(139,92,246,0.3)',
+                      background: 'rgba(139,92,246,0.1)',
+                      color: '#8b5cf6',
                       cursor: 'pointer'
                     }}
                     onClick={() => {
@@ -334,7 +334,7 @@ export default function BotArena() {
                       key={entry.botId}
                       style={{ 
                         borderBottom: '1px solid rgba(255,255,255,0.05)',
-                        background: entry.rank <= 3 ? 'rgba(255,213,79,0.05)' : 'transparent'
+                        background: entry.rank <= 3 ? 'rgba(139,92,246,0.05)' : 'transparent'
                       }}
                     >
                       <td style={{ padding: 12, fontSize: 16 }}>{medal}</td>
@@ -359,7 +359,7 @@ export default function BotArena() {
                       </td>
                       <td style={{ padding: 12, textAlign: 'right' }}>
                         <span style={{ 
-                          color: entry.winRate >= 60 ? '#81c784' : entry.winRate >= 40 ? '#ffd54f' : '#e57373'
+                          color: entry.winRate >= 60 ? '#81c784' : entry.winRate >= 40 ? '#8b5cf6' : '#e57373'
                         }}>
                           {entry.winRate}%
                         </span>
@@ -549,7 +549,7 @@ function BotRegistrationForm() {
                 fontFamily: 'monospace',
                 fontSize: 14,
                 wordBreak: 'break-all',
-                border: '1px solid rgba(255,213,79,0.3)'
+                border: '1px solid rgba(139,92,246,0.3)'
               }}>
                 {apiKey}
               </div>
@@ -577,7 +577,7 @@ function BotRegistrationForm() {
                 padding: '10px 20px',
                 borderRadius: 8,
                 border: 'none',
-                background: '#ffd54f',
+                background: '#8b5cf6',
                 color: '#1a0f2e',
                 fontWeight: 700,
                 cursor: 'pointer'
@@ -654,7 +654,7 @@ function BotRegistrationForm() {
                 padding: '12px',
                 borderRadius: 8,
                 border: 'none',
-                background: loading ? '#666' : '#ffd54f',
+                background: loading ? '#666' : '#8b5cf6',
                 color: '#1a0f2e',
                 fontWeight: 700,
                 fontSize: 16,

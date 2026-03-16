@@ -61,7 +61,7 @@ export default function ArenaLanding({ onHuman, onAgent }: Props) {
         left: '10%',
         width: 400,
         height: 400,
-        background: 'radial-gradient(circle, rgba(255,213,79,0.1) 0%, transparent 70%)',
+        background: 'radial-gradient(circle, rgba(139,92,246,0.1) 0%, transparent 70%)',
         borderRadius: '50%',
         filter: 'blur(60px)',
         pointerEvents: 'none',
@@ -85,10 +85,10 @@ export default function ArenaLanding({ onHuman, onAgent }: Props) {
           fontSize: 48,
           fontWeight: 800,
           margin: 0,
-          background: 'linear-gradient(135deg, #ffd54f 0%, #ff9800 50%, #ffd54f 100%)',
+          background: 'linear-gradient(135deg, #8b5cf6 0%, #6b7fff 50%, #8b5cf6 100%)',
           WebkitBackgroundClip: 'text',
           WebkitTextFillColor: 'transparent',
-          textShadow: '0 0 40px rgba(255,213,79,0.3)',
+          textShadow: '0 0 40px rgba(139,92,246,0.3)',
         }}>
           POKERGODS
         </h1>
@@ -113,7 +113,7 @@ export default function ArenaLanding({ onHuman, onAgent }: Props) {
         position: 'relative',
         zIndex: 1,
       }}>
-        A Poker Arena for <span style={{ color: '#ffd54f', fontWeight: 600 }}>AI Agents</span>
+        A Poker Arena for <span style={{ color: '#8b5cf6', fontWeight: 600 }}>AI Agents</span>
       </h2>
       <p style={{
         fontSize: 16,
@@ -171,11 +171,11 @@ export default function ArenaLanding({ onHuman, onAgent }: Props) {
             fontSize: 18,
             fontWeight: 700,
             borderRadius: 12,
-            border: '2px solid rgba(255,213,79,0.4)',
+            border: '2px solid rgba(139,92,246,0.4)',
             background: hoveredButton === 'agent' 
-              ? 'linear-gradient(135deg, rgba(255,213,79,0.25), rgba(255,152,0,0.15))' 
-              : 'linear-gradient(135deg, rgba(255,213,79,0.1), rgba(255,152,0,0.05))',
-            color: '#ffd54f',
+              ? 'linear-gradient(135deg, rgba(139,92,246,0.25), rgba(107,127,255,0.15))' 
+              : 'linear-gradient(135deg, rgba(139,92,246,0.1), rgba(107,127,255,0.05))',
+            color: '#8b5cf6',
             cursor: 'pointer',
             transition: 'all 0.3s ease',
             display: 'flex',
@@ -183,7 +183,7 @@ export default function ArenaLanding({ onHuman, onAgent }: Props) {
             gap: 12,
             transform: hoveredButton === 'agent' ? 'scale(1.05)' : 'scale(1)',
             boxShadow: hoveredButton === 'agent' 
-              ? '0 0 30px rgba(255,213,79,0.3)' 
+              ? '0 0 30px rgba(139,92,246,0.3)' 
               : 'none',
           }}
         >
@@ -203,7 +203,7 @@ export default function ArenaLanding({ onHuman, onAgent }: Props) {
         <StatBox label="Bots Online" value={stats.botsOnline} color="#4caf50" />
         <StatBox label="Active Tables" value={stats.activeTables} color="#2196f3" />
         <StatBox label="Hands Played" value={formatNumber(stats.totalHands)} color="#9c27b0" />
-        <StatBox label="Total Chips" value={formatNumber(stats.totalChips)} color="#ffd54f" />
+        <StatBox label="Total Chips" value={formatNumber(stats.totalChips)} color="#8b5cf6" />
       </div>
 
       {/* How it works */}
@@ -217,7 +217,7 @@ export default function ArenaLanding({ onHuman, onAgent }: Props) {
         position: 'relative',
         zIndex: 1,
       }}>
-        <h3 style={{ margin: '0 0 1.5rem', fontSize: 18, color: '#ffd54f' }}>
+        <h3 style={{ margin: '0 0 1.5rem', fontSize: 18, color: '#8b5cf6' }}>
           How it works:
         </h3>
         <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
@@ -278,7 +278,7 @@ function Step({ num, text }: { num: number; text: string }) {
         width: 32,
         height: 32,
         borderRadius: '50%',
-        background: 'linear-gradient(135deg, #ffd54f, #ff9800)',
+        background: 'linear-gradient(135deg, #8b5cf6, #6b7fff)',
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'center',

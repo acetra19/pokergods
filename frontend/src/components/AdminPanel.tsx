@@ -26,7 +26,7 @@ export default function AdminPanel({ lobby: _lobby, setLobby: _setLobby, onSpect
   return (
     <div style={{ display:'flex', gap:8, alignItems:'center', flexWrap:'wrap' }}>
       {!token ? (
-        <div style={{ width:'100%', border:'1px solid rgba(255,213,79,0.25)', padding:12, borderRadius:10, background:'rgba(26,8,48,0.95)' }}>
+        <div style={{ width:'100%', border:'1px solid rgba(139,92,246,0.25)', padding:12, borderRadius:10, background:'rgba(10,14,30,0.95)' }}>
           <h3>Admin Login</h3>
           <div style={{ display:'grid', gridTemplateColumns:'120px 1fr', gap:8, alignItems:'center' }}>
             <label>Username</label>

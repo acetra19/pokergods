@@ -31,7 +31,7 @@ export default function ProfilePanel({ wallet }: { wallet: string }){
   }
 
   return (
-    <div style={{ border:'1px solid rgba(255,213,79,0.25)', padding:12, borderRadius:10, background:'rgba(26,8,48,0.95)' }}>
+    <div style={{ border:'1px solid rgba(139,92,246,0.25)', padding:12, borderRadius:10, background:'rgba(10,14,30,0.95)' }}>
       <h3>Your Profile</h3>
       <div style={{ display:'grid', gridTemplateColumns:'140px 1fr', gap:8, alignItems:'center' }}>
         <label>Wallet</label>
@@ -69,7 +69,7 @@ export default function ProfilePanel({ wallet }: { wallet: string }){
       <div style={{ marginTop:14 }}>
         <b>Preview</b>
         <div style={{ display:'flex', gap:10, alignItems:'center', marginTop:6 }}>
-          <div style={{ width:42, height:42, borderRadius:999, background:'#3b1a6a', display:'flex', alignItems:'center', justifyContent:'center', overflow:'hidden', border:'1px solid rgba(255,213,79,0.28)' }}>
+          <div style={{ width:42, height:42, borderRadius:999, background:'#312e81', display:'flex', alignItems:'center', justifyContent:'center', overflow:'hidden', border:'1px solid rgba(139,92,246,0.28)' }}>
             {avatarUrl ? (<img src={avatarUrl} alt="avatar" style={{ width:'100%', height:'100%', objectFit:'cover' }} />) : (<span style={{ fontWeight:800 }}>{(username||wallet).slice(0,2).toUpperCase()}</span>)}
           </div>
           <div style={{ fontWeight:800 }}>{username || '(no username set)'}</div>

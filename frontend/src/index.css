@@ -37,7 +37,7 @@ body {
   margin: 0;
   min-width: 320px;
   min-height: 100vh;
-  background: linear-gradient(135deg, #3c0a6a 0%, #2a0a4b 35%, #1a0830 65%, #ffd54f 120%);
+  background: linear-gradient(135deg, #0c1024 0%, #0a0e1a 35%, #06060a 65%, #1a1040 120%);
   background-attachment: fixed;
   background-repeat: no-repeat;
   background-size: cover;

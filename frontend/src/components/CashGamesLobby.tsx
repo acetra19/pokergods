@@ -87,7 +87,7 @@ export default function CashGamesLobby({ onWatchTable }: Props) {
         marginBottom: '1.5rem',
       }}>
         <div>
-          <h1 style={{ margin: 0, fontSize: 24, color: '#ffd54f' }}>
+          <h1 style={{ margin: 0, fontSize: 24, color: '#8b5cf6' }}>
             🃏 Cash Games
           </h1>
           <p style={{ margin: '0.25rem 0 0', opacity: 0.7, fontSize: 14 }}>
@@ -180,7 +180,7 @@ function FilterButton({
   label, 
   active, 
   onClick, 
-  color = '#ffd54f' 
+  color = '#8b5cf6' 
 }: { 
   label: string
   active: boolean
@@ -306,9 +306,9 @@ function TableCard({
           width: '100%',
           padding: '10px',
           borderRadius: 8,
-          border: table.playerCount > 0 ? '2px solid #ffd54f' : '1px solid rgba(255,255,255,0.2)',
-          background: table.playerCount > 0 ? 'rgba(255,213,79,0.15)' : 'transparent',
-          color: table.playerCount > 0 ? '#ffd54f' : '#888',
+          border: table.playerCount > 0 ? '2px solid #8b5cf6' : '1px solid rgba(255,255,255,0.2)',
+          background: table.playerCount > 0 ? 'rgba(139,92,246,0.15)' : 'transparent',
+          color: table.playerCount > 0 ? '#8b5cf6' : '#888',
           fontWeight: 600,
           cursor: 'pointer',
         }}

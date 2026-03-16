@@ -133,7 +133,7 @@ export default function HULobby({ wallet, onMatch }: { wallet: string, onMatch: 
       </div>
       {/* duplicate controls removed to avoid repetition */}
       <div style={{ display:'flex', gap:8, alignItems:'center', marginBottom:8, justifyContent:'flex-start' }}>
-        <span className="badge" style={{ padding:'4px 10px', borderRadius:999, background:'#2a1450', color:'#ffd54f', fontSize:13, border:'1px solid rgba(255,213,79,0.25)' }}>You: {displayName || wallet}</span>
+        <span className="badge" style={{ padding:'4px 10px', borderRadius:999, background:'#1e1b4b', color:'#8b5cf6', fontSize:13, border:'1px solid rgba(139,92,246,0.25)' }}>You: {displayName || wallet}</span>
       </div>
       <div style={{ display:'flex', alignItems:'center', gap:8, marginBottom:6 }}>
         <span className="badge" style={{ padding:'2px 8px', borderRadius:999, background:'#0b3c27', color:'#c7f3de', fontSize:12 }}>Waiting: {queueSize}</span>
@@ -202,7 +202,7 @@ export default function HULobby({ wallet, onMatch }: { wallet: string, onMatch: 
       </div>
 
       <div style={{ marginTop:12, textAlign:'left', display:'grid', gridTemplateColumns:'1fr 1fr', gap:12 }}>
-        <div style={{ border:'1px solid rgba(255,213,79,0.25)', borderRadius:8, padding:8 }}>
+        <div style={{ border:'1px solid rgba(139,92,246,0.25)', borderRadius:8, padding:8 }}>
           <b>Top Hand</b>
           {sessionTop ? (
             <div style={{ marginTop:6 }}>
@@ -213,7 +213,7 @@ export default function HULobby({ wallet, onMatch }: { wallet: string, onMatch: 
             <div style={{ marginTop:6, opacity:0.7 }}>—</div>
           )}
         </div>
-        <div style={{ border:'1px solid rgba(255,213,79,0.25)', borderRadius:8, padding:8 }}>
+        <div style={{ border:'1px solid rgba(139,92,246,0.25)', borderRadius:8, padding:8 }}>
           <b>Bad Beat</b>
           {sessionBB ? (
             <div style={{ marginTop:6 }}>

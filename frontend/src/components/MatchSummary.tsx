@@ -66,7 +66,7 @@ export default function MatchSummary() {
         <div style={{ marginBottom:8 }}>Winners: {winners.map((w:any)=> `${(w.displayName || nameOf(w.playerId))} (+${w.amount})`).join(', ')}</div>
         {data?.showdownInfo && (<div style={{ fontSize:12, opacity:0.9 }}>{data.showdownInfo.map((s:any)=> `${(s.displayName || nameOf(s.playerId))}: ${s.category}`).join(' · ')}</div>)}
         {/* Snapshot of final hand */}
-        <div style={{ marginTop:12, padding:12, border:'1px solid rgba(255,213,79,0.25)', borderRadius:12, background:'rgba(26,8,48,0.6)' }}>
+        <div style={{ marginTop:12, padding:12, border:'1px solid rgba(139,92,246,0.25)', borderRadius:12, background:'rgba(10,14,30,0.6)' }}>
           <div style={{ display:'flex', flexDirection:'column', alignItems:'center', gap:8 }}>
             <div style={{ display:'flex', gap:8, justifyContent:'center' }}>
               {community.map((c:any, i:number)=> (

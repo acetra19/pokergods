@@ -1046,7 +1046,7 @@ const [showEmoji, setShowEmoji] = useState(false)
         <div style={{ textAlign:'center', margin:'12px 0 0' }}>
           <p>No seating yet.</p>
           <div style={{ marginTop:10, display:'flex', justifyContent:'center' }}>
-            <img src={pgCover} alt="Pokergods cover" style={{ maxWidth: 540, width:'90%', borderRadius: 12, border:'1px solid rgba(255,213,79,0.25)', boxShadow:'0 8px 24px rgba(0,0,0,0.35)' }} />
+            <img src={pgCover} alt="Pokergods cover" style={{ maxWidth: 540, width:'90%', borderRadius: 12, border:'1px solid rgba(139,92,246,0.25)', boxShadow:'0 8px 24px rgba(0,0,0,0.35)' }} />
           </div>
         </div>
       )}
