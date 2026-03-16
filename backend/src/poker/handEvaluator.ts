@@ -55,13 +55,19 @@ export function evaluateBestFive(cards: Card[]): EvaluatedHand {
   }
   const straight = findStraight(uniqueWithWheel);
 
-  // Straight flush
+  // Straight flush — use ALL cards of the flush suit (not just top 5)
   if (flushCards) {
-    const flushRanks = Array.from(new Set(flushCards.map((c) => c.rank))).sort(byRankDesc);
-    const sf = findStraight(flushRanks);
+    const flushSuit = flushCards[0]!.suit;
+    const allFlushSuited = sortCardsDesc(cards.filter((c) => c.suit === flushSuit));
+    const allFlushRanks = Array.from(new Set(allFlushSuited.map((c) => c.rank))).sort(byRankDesc);
+    const flushWithWheel = allFlushRanks.includes(14 as Rank)
+      ? allFlushRanks.concat([1 as unknown as Rank])
+      : allFlushRanks;
+    const sf = findStraight(flushWithWheel);
     if (sf) {
-      const bestFive = flushCards
-        .filter((c) => sf.includes(c.rank))
+      const sfRankSet = new Set(sf.map(Number));
+      const bestFive = allFlushSuited
+        .filter((c) => sfRankSet.has(c.rank) || (sfRankSet.has(1) && c.rank === 14))
         .sort((a, b) => b.rank - a.rank)
         .slice(0, 5);
       return { category: HandCategory.StraightFlush, kickers: bestFive.map((c) => c.rank), bestFive };

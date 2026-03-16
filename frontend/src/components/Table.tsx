@@ -383,9 +383,9 @@ const [showEmoji, setShowEmoji] = useState(false)
     return () => { try { if (handPollId) clearInterval(handPollId) } catch {}; try { if (switchTimeout) clearTimeout(switchTimeout) } catch {}; try { mo && mo.disconnect() } catch {}; ws.close() }
   }, [])
 
-  // Live ticker for countdowns (Timebank)
+  // Live ticker for countdowns (smooth ring animation)
   useEffect(()=>{
-    const id = setInterval(()=> setNowMs(Date.now()), 500)
+    const id = setInterval(()=> setNowMs(Date.now()), 100)
     return ()=> clearInterval(id)
   }, [])
 
@@ -548,8 +548,8 @@ const [showEmoji, setShowEmoji] = useState(false)
     } catch {}
   }, [inRevealUI, hand])
 
-  // Remember previous community length for flip logic (must be AFTER declaration)
-  useEffect(()=>{ prevCommLenRef.current = communityCards.length }, [communityCards.length])
+  // Track revealed count for deal-slide animation (syncs with visual reveal, not data arrival)
+  useEffect(()=>{ prevCommLenRef.current = revealedCount }, [revealedCount])
 
   // Staged reveal for community cards (client-side sequencer)
   const triggerOverlay = useCallback((st:any) => {
@@ -596,14 +596,12 @@ const [showEmoji, setShowEmoji] = useState(false)
             try { resumeAudio(); (youWin ? playWin() : playLose()) } catch {}
             setTimeout(()=> { try { document.body.removeChild(node) } catch {} }, 1200)
           } catch {}
-          // Overlay mit 1.8s Verzögerung zeigen (Tisch bleibt etwas länger sichtbar)
           setTimeout(()=>{
             setShowOverlay(true)
             overlayStateRef.current = 'visible'
             overlayHoldUntilMsRef.current = 0
           }, 1800)
-          // Direkt zur Summary navigieren (kein Zwischen-Overlay im Table)
-          setTimeout(()=> { try { window.location.hash = '#/summary' } catch {} }, 1800)
+          setTimeout(()=> { try { window.location.hash = '#/summary' } catch {} }, 5000)
           // (Overlay-State ist bereits gesetzt)
   }, [])
 
@@ -683,29 +681,29 @@ const [showEmoji, setShowEmoji] = useState(false)
     }
     // reveal progressively until we match server state
     if (communityCards.length > revealedCount) {
+      let alive = true
       let i = revealedCount
+      const timers: ReturnType<typeof setTimeout>[] = []
       const step = () => {
+        if (!alive) return
         i += 1
         if (audioAllowedRef.current) playSoundCore('deal', () => { resumeAudio(); try { playDeal() } catch {} })
         setRevealedCount((v) => Math.min(communityCards.length, Math.max(v + 1, i)))
         if (i < communityCards.length) {
-          // Slow down turn/river, especially when all-in
-          // const remaining = communityCards.length - i
           let delay = 300
           const revealedSoFar = i
-          if (revealedSoFar === 3) delay = anyAllIn ? 1300 : 420 // post-flop settle
-          else if (revealedSoFar === 4) delay = anyAllIn ? 1600 : 520 // turn
-          else if (revealedSoFar === 5) delay = anyAllIn ? 2000 : 650 // river
-          setTimeout(step, delay)
+          if (revealedSoFar === 3) delay = anyAllIn ? 1300 : 420
+          else if (revealedSoFar === 4) delay = anyAllIn ? 1600 : 520
+          else if (revealedSoFar === 5) delay = anyAllIn ? 2000 : 650
+          timers.push(setTimeout(step, delay))
         } else {
-          // full reveal reached; set overlay cue and schedule hold before server jump
           try { if (audioAllowedRef.current) playSoundCore('overlay', () => playOverlayCue()) } catch {}
           overlayShowAtMsRef.current = Date.now() + (anyAllIn ? 1600 : 1000)
         }
       }
       const extra = nextRevealHoldMsRef.current; nextRevealHoldMsRef.current = 0
-      const t = setTimeout(step, 300 + extra)
-      return () => clearTimeout(t)
+      timers.push(setTimeout(step, 300 + extra))
+      return () => { alive = false; timers.forEach(clearTimeout) }
     }
     // clamp down if server reduced (new hand)
     if (communityCards.length < revealedCount) {
@@ -726,9 +724,7 @@ const [showEmoji, setShowEmoji] = useState(false)
           overlayHoldUntilMsRef.current = 0
           setOverlayCooldown(true)
           setTimeout(()=> setOverlayCooldown(false), 260)
-                 setOverlayCooldown(true)
-                 setTimeout(()=> setOverlayCooldown(false), 260)
-                 setShowOverlay(false)
+          setShowOverlay(false)
           overlayStateRef.current = 'idle'
           overlayDataRef.current = null
         }, remaining)
@@ -764,9 +760,7 @@ const [showEmoji, setShowEmoji] = useState(false)
           if (showOverlay) {
             setOverlayCooldown(true)
             setTimeout(()=> setOverlayCooldown(false), 260)
-                 setOverlayCooldown(true)
-                 setTimeout(()=> setOverlayCooldown(false), 260)
-                 setShowOverlay(false)
+            setShowOverlay(false)
           }
         }
         overlayDataRef.current = null
@@ -1060,7 +1054,7 @@ const [showEmoji, setShowEmoji] = useState(false)
       if (primaryRemaining <= 0) {
         bankMode = true
         const bankRemaining = Math.max(0, (actionState.actorTimebankMs as number) || 0)
-        const BANK_TOTAL = Math.max(1, bankRemaining)
+        const BANK_TOTAL = 30000
         decPct = 100 - Math.floor((bankRemaining / BANK_TOTAL) * 100)
       }
     }

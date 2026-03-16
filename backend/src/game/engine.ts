@@ -158,7 +158,9 @@ export class GameEngine {
     const sbAmt = Math.min(this.sb, sbPlayer.chips);
     const bbAmt = Math.min(this.bb, bbPlayer.chips);
     sbPlayer.chips -= sbAmt; this.pot += sbAmt;
+    if (sbPlayer.chips === 0) sbPlayer.allIn = true;
     bbPlayer.chips -= bbAmt; this.pot += bbAmt;
+    if (bbPlayer.chips === 0) bbPlayer.allIn = true;
     this.currentBet = bbAmt;
     this.committed = { [sbPlayer.playerId]: sbAmt, [bbPlayer.playerId]: bbAmt };
   }
@@ -250,9 +252,13 @@ export class GameEngine {
     if (!best) return;
     const winners = evals.filter((e) => e.hand.category === best.hand.category && e.hand.kickers.join(',') === best.hand.kickers.join(','));
     const share = Math.floor(this.pot / winners.length);
-    this.lastWinners = winners.map((w) => ({ playerId: w.player.playerId, amount: share }));
-    for (const w of winners) {
-      w.player.chips += share;
+    const remainder = this.pot - share * winners.length;
+    this.lastWinners = winners.map((w, i) => ({
+      playerId: w.player.playerId,
+      amount: share + (i < remainder ? 1 : 0),
+    }));
+    for (let i = 0; i < winners.length; i++) {
+      winners[i]!.player.chips += share + (i < remainder ? 1 : 0);
     }
     // showdown info (simple category text)
     const cat = (c: number) => ["","High Card","One Pair","Two Pair","Trips","Straight","Flush","Full House","Quads","Straight Flush"][c] || "";
@@ -270,18 +276,18 @@ export class GameEngine {
     return live.every((p) => p.allIn);
   }
 
+  private isRunningOut = false;
   private runOutToShowdown() {
-    // Guard: if we are already at showdown, do nothing
-    if (this.street === Street.Showdown) {
-      this.dbg('runOutToShowdown:already_showdown');
+    if (this.isRunningOut || this.street === Street.Showdown) {
+      this.dbg('runOutToShowdown:skip');
       return;
     }
-    // Immediately deal out remaining streets to reach showdown (reliable server semantics)
-    for (;;) {
-      if ((this.street as unknown as Street) === Street.Showdown) break;
+    this.isRunningOut = true;
+    while ((this.street as unknown as Street) !== Street.Showdown) {
       this.advanceStreet();
     }
     this.runoutNextAtMs = 0;
+    this.isRunningOut = false;
     this.dbg('runOutToShowdown');
   }
 
