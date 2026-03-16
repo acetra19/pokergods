@@ -149,15 +149,27 @@ function App() {
     return <Landing onEnter={() => go('login')} />
   }
 
-  // CorePass login gate
+  // CorePass login gate — full-screen styled layout
   if (view === 'login' && !loggedIn) {
     return (
-      <div className="card theme-pokergods pg-login-gate">
-        <div style={{ textAlign: 'center', marginBottom: 20 }}>
-          <div style={{ fontSize: 13, fontWeight: 1000, letterSpacing: 2, color: '#8b5cf6', textTransform: 'uppercase' }}>POKERGODS</div>
-          <div style={{ fontSize: 22, fontWeight: 800, color: '#fff', marginTop: 6 }}>Sign in to play</div>
+      <div className="pg-login-screen theme-pokergods">
+        <div className="pg-login-bg" aria-hidden>
+          <span className="pg-login-orb pg-login-orb-1" />
+          <span className="pg-login-orb pg-login-orb-2" />
+          <span className="pg-login-orb pg-login-orb-3" />
+          <span className="pg-login-suit pg-login-suit-1">♠</span>
+          <span className="pg-login-suit pg-login-suit-2">♥</span>
+          <span className="pg-login-suit pg-login-suit-3">♦</span>
+          <span className="pg-login-suit pg-login-suit-4">♣</span>
         </div>
-        <AuthPanel onLogin={({ wallet: w }) => { handleCorepassLogin(w); checkProfileAndGo(w) }} />
+        <div className="card theme-pokergods pg-login-gate">
+          <div className="pg-login-head">
+            <div className="pg-login-brand">CoreDrop Poker</div>
+            <div className="pg-login-title">Sign in to play</div>
+            <div className="pg-login-sub">Use CorePass to connect securely</div>
+          </div>
+          <AuthPanel onLogin={({ wallet: w }) => { handleCorepassLogin(w); checkProfileAndGo(w) }} />
+        </div>
       </div>
     )
   }

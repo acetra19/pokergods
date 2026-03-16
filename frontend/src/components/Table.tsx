@@ -36,7 +36,9 @@ export default function TableView({ wallet, tableId }: { wallet?: string, tableI
   const [level, setLevel] = useState<BlindLevel | null>({ index: 0, durationSec: 120, smallBlind: 25, bigBlind: 50 })
   const [hand, setHand] = useState<any[] | null>(null)
   const [actionState, setActionState] = useState<any | null>(null)
+  const [logOpen, setLogOpen] = useState<boolean>(false)
   const [chatOpen, setChatOpen] = useState<boolean>(false)
+  const [logLines, setLogLines] = useState<{ts:number,text:string}[]>([])
   const [chatLines, setChatLines] = useState<{ts:number,text:string,tableId:string|null}[]>([])
   const [chatInput, setChatInput] = useState<string>('')
   const [toast] = useState<string>('')
@@ -93,6 +95,8 @@ const [showEmoji, setShowEmoji] = useState(false)
   const feltRef = useRef<HTMLDivElement|null>(null)
   const [showOverlay, setShowOverlay] = useState<boolean>(false)
   const [sizingAmt, setSizingAmt] = useState<number | null>(null)
+  const [equity, setEquity] = useState<Record<string, number> | null>(null)
+  const equityTimelineRef = useRef<Array<{ community: number; eq: Record<string, number> }>>([]);
   const profileNameCache = useRef<Record<string,{ name: string; avatar?: string }>>({})
   const potFlightHandRef = useRef<number|null>(null)
   // Hold last table frame between win moment and overlay navigation to avoid flicker
@@ -154,6 +158,7 @@ const [showEmoji, setShowEmoji] = useState(false)
       if (m?.type === 'tournament' && m.payload?.event === 'hand_state') {
         const states: any[] = Array.isArray(m.payload.states) ? m.payload.states : []
         const blindsByTable = (m.payload && m.payload.blindsByTable) ? m.payload.blindsByTable as Record<string,{sb:number;bb:number}> : {}
+        const equityByTable = (m.payload?.equityByTable || {}) as Record<string, Record<string, number>>
         // Select only the state for our current table (or the one we play on)
         const mine = (() => {
           // prefer explicit prop tableId
@@ -199,6 +204,13 @@ const [showEmoji, setShowEmoji] = useState(false)
             }
           } catch {}
         }
+        try {
+          const tid = mine?.tableId || states[0]?.tableId
+          const eqTimeline = (m.payload?.equityTimeline || {}) as Record<string, Array<{ community: number; eq: Record<string, number> }>>
+          if (tid && eqTimeline[tid]?.length) equityTimelineRef.current = eqTimeline[tid]
+          if (tid && equityByTable[tid]) setEquity(equityByTable[tid])
+          else if (mine && !mine.allInLocked && mine.street !== 'showdown') setEquity(null)
+        } catch {}
         // sound hooks + floating commentary
         if (mine) {
           const st = mine
@@ -707,6 +719,8 @@ const [showEmoji, setShowEmoji] = useState(false)
       lastWinFloatSigRef.current = ''
       handFrozenRef.current = false
       pendingHandRef.current = null
+      setEquity(null)
+      equityTimelineRef.current = []
       try { inRevealUIRef.current = false } catch {}
       // Reset frozen chip displays/committed maps to avoid stale zeros at new hand
       try { displayChipsRef.current = {}; committedRef.current = {} } catch {}
@@ -1004,10 +1018,7 @@ const [showEmoji, setShowEmoji] = useState(false)
     const id = Math.random().toString(36).slice(2)
     setFloatTexts((arr)=> [...arr, { id, text, x: xPct, y: yPct, size, style }])
     try {
-      const h = handRef.current
-      const currentTableId = (h && h[0]?.tableId) || myTableRef.current?.tableId || null
-      const line = { ts: Date.now(), text: `${text}`, tableId: currentTableId }
-      setChatLines((prev)=> [line as any, ...prev].slice(0,60))
+      setLogLines((prev)=> [{ ts: Date.now(), text }, ...prev].slice(0, 80))
     } catch {}
     setTimeout(()=> setFloatTexts((arr)=> arr.filter(f=> f.id !== id)), 2600)
   }
@@ -1330,20 +1341,84 @@ const [showEmoji, setShowEmoji] = useState(false)
             })}
               </div>
           </div>
-          {/* Chat UI anchored to felt-wrap (bottom-right of wrapper) */}
-            <button className="chat-toggle" style={{ right: 16, left: 'auto', bottom: 6 }} onClick={()=> setChatOpen(!chatOpen)}>{chatOpen? 'Hide log':'Show log'}</button>
+          {/* Equity bar for all-in situations */}
+          {equity && (anyAllIn || street === 'showdown') && (()=>{
+            const livePlayers = (myTable?.players || []).filter((p:any) => p.inHand && !p.busted)
+            if (livePlayers.length !== 2) return null
+            const isPlaying = wallet && livePlayers.some((p:any) => p.playerId === wallet)
+            const [pA, pB] = isPlaying
+              ? [livePlayers.find((p:any) => p.playerId === wallet)!, livePlayers.find((p:any) => p.playerId !== wallet)!]
+              : livePlayers
+            const tl = equityTimelineRef.current
+            const visibleEq = (()=>{
+              if (!tl.length) return equity
+              const stage = revealedCount >= 5 ? 5 : revealedCount >= 4 ? 4 : revealedCount >= 3 ? 3 : 0
+              const match = [...tl].reverse().find(t => t.community <= stage)
+              return match ? match.eq : equity
+            })()
+            const eqA = visibleEq[pA.playerId] ?? null
+            const eqB = visibleEq[pB.playerId] ?? null
+            if (eqA === null && eqB === null) return null
+            const pctA = eqA ?? (eqB !== null ? 100 - eqB : 50)
+            const pctB = eqB ?? (eqA !== null ? 100 - eqA : 50)
+            const colorOf = (pct: number) => pct >= 65 ? '#22c55e' : pct >= 45 ? '#eab308' : '#ef4444'
+            return (
+              <div className="equity-bar-wrap">
+                <div className="equity-bar-label">
+                  <span style={{ color: colorOf(pctA), fontWeight: 800 }}>{pctA.toFixed(1)}%</span>
+                  <span style={{ fontSize: 10, color: '#94a3b8', letterSpacing: 1 }}>WINNING CHANCE</span>
+                  <span style={{ color: colorOf(pctB), fontWeight: 800 }}>{pctB.toFixed(1)}%</span>
+                </div>
+                <div className="equity-bar-track">
+                  <div className="equity-bar-hero" style={{ width: `${pctA}%`, background: colorOf(pctA) }} />
+                  <div className="equity-bar-villain" style={{ width: `${pctB}%`, background: colorOf(pctB) }} />
+                </div>
+                <div className="equity-bar-names">
+                  <span>{nameOf(pA.playerId)}</span>
+                  <span>{nameOf(pB.playerId)}</span>
+                </div>
+              </div>
+            )
+          })()}
           {toast && <div className="toast">{toast}</div>}
-          {chatOpen && (
+          {/* Panels appear above toggle buttons */}
+          <div className="table-panels-area">
+            {logOpen && (
+              <div className="game-log-panel">
+                <div className="panel-header">Game Log</div>
+                <div className="panel-scroll">
+                  {logLines.length === 0 && <div className="panel-empty">No actions yet...</div>}
+                  {logLines.slice(0, 50).map((l, i)=> (
+                    <div key={`${l.ts}-${i}`} className="log-line">{new Date(l.ts).toLocaleTimeString([], { hour:'2-digit', minute:'2-digit', second:'2-digit' })} <span className="log-text">{l.text}</span></div>
+                  ))}
+                </div>
+              </div>
+            )}
+            {chatOpen && (
               <div className="chat-panel">
-                {chatLines.slice(0, 40).map((l, i)=> (
-                  <div key={`${l.ts}-${i}`} className="line">{new Date(l.ts).toLocaleTimeString()} · {l.text}</div>
-                ))}
-                <form onSubmit={(e)=>{ e.preventDefault(); const msg = chatInput.trim(); if (!msg) return; try { const tid = handRef.current?.[0]?.tableId || myTableRef.current?.tableId || t.tableId; (window as any).pg_ws_send && (window as any).pg_ws_send({ type:'chat', tableId: tid, message: msg }); setChatInput('') } catch {} }} style={{ display:'flex', gap:6, marginTop:6 }}>
-                  <input value={chatInput} onChange={(e)=> setChatInput(e.target.value)} placeholder="message…" style={{ flex:1 }} />
+                <div className="panel-header">Chat</div>
+                <div className="panel-scroll">
+                  {chatLines.length === 0 && <div className="panel-empty">No messages yet...</div>}
+                  {chatLines.slice(0, 40).map((l, i)=> (
+                    <div key={`${l.ts}-${i}`} className="chat-line">{new Date(l.ts).toLocaleTimeString([], { hour:'2-digit', minute:'2-digit', second:'2-digit' })} <span className="chat-text">{l.text}</span></div>
+                  ))}
+                </div>
+                <form className="chat-form" onSubmit={(e)=>{ e.preventDefault(); const msg = chatInput.trim(); if (!msg) return; try { const tid = handRef.current?.[0]?.tableId || myTableRef.current?.tableId || t.tableId; (window as any).pg_ws_send && (window as any).pg_ws_send({ type:'chat', tableId: tid, message: msg }); setChatInput('') } catch {} }}>
+                  <input value={chatInput} onChange={(e)=> setChatInput(e.target.value)} placeholder="Type a message…" />
                   <button className="btn btn-primary" type="submit">Send</button>
                 </form>
               </div>
-          )}
+            )}
+          </div>
+          {/* Toggle buttons for Log and Chat */}
+          <div className="table-panel-toggles">
+            <button className={`panel-toggle ${logOpen ? 'active' : ''}`} onClick={()=> setLogOpen(!logOpen)}>
+              <span className="panel-toggle-icon">📋</span>{logOpen ? 'Hide Log' : 'Game Log'}
+            </button>
+            <button className={`panel-toggle ${chatOpen ? 'active' : ''}`} onClick={()=> setChatOpen(!chatOpen)}>
+              <span className="panel-toggle-icon">💬</span>{chatOpen ? 'Hide Chat' : 'Chat'}
+            </button>
+          </div>
           </div>
         {actionState && (()=>{
           const actor = actionState.actorPlayerId;
@@ -1427,9 +1502,12 @@ const [showEmoji, setShowEmoji] = useState(false)
                   }}>
                       <div className="sizing-controls" style={{ background:'#fff' }}>
                       <input name="amt" type="number" min={minTo} max={maxTo} placeholder={String(minTo)} disabled={!canAct}
-                        onChange={(e)=>{ const v = Number(e.currentTarget.value||0); setSizingAmt(Number.isFinite(v)?v:null); }} />
-                      <input name="slider" type="range" min={minTo} max={maxTo} defaultValue={minTo} disabled={!canAct}
-                        onChange={(e)=>{ const f = (e.currentTarget.form!.elements.namedItem('amt') as HTMLInputElement); f.value = e.currentTarget.value; setSizingAmt(Number(e.currentTarget.value||0)); }} />
+                        value={sizingAmt ?? ''}
+                        onChange={(e)=>{ const v = Number(e.currentTarget.value||0); setSizingAmt(Number.isFinite(v) && v > 0 ? v : null); setPendingBtnLabel(null); }} />
+                      <input name="slider" type="range" min={minTo} max={maxTo} disabled={!canAct}
+                        value={sizingAmt ?? minTo}
+                        onInput={(e)=>{ const v = Number((e.target as HTMLInputElement).value||0); setSizingAmt(v); setPendingBtnLabel(null); }}
+                        onChange={(e)=>{ const v = Number(e.currentTarget.value||0); setSizingAmt(v); setPendingBtnLabel(null); }} />
                       <div className="presets">
                         {isBet ? (
                           <>

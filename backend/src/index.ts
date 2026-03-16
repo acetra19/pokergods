@@ -11,6 +11,7 @@ import { HUManager } from "./hu/manager.js";
 import { createHash, randomBytes } from "node:crypto";
 import { promises as fs } from "node:fs";
 import path from "node:path";
+import { headsUpEquity } from "./poker/equity.js";
 
 // Bot Arena imports
 import { 
@@ -671,11 +672,51 @@ const catRank = (c: string) => {
 }
 
 // Broadcast current hand states to clients
+const equityCache = new Map<string, { equityA: number; equityB: number }>();
+
 const broadcastHandStates = () => {
   const states = Array.from(tableEngines.values()).map((e) => e.getPublic());
   const blindsByTable: Record<string, { sb:number; bb:number }> = {}
   tableEngines.forEach((_e, tid)=> { const b = huBlindsByTable.get(tid); if (b) blindsByTable[tid] = b })
-  broadcast({ type: "tournament", payload: { event: "hand_state", states, blindsByTable } });
+
+  const equityByTable: Record<string, Record<string, number>> = {};
+  const equityTimeline: Record<string, Array<{ community: number; eq: Record<string, number> }>> = {};
+  for (const st of states) {
+    const isAllIn = st.players.some((p: any) => p.inHand && !p.busted && p.allIn);
+    if (!isAllIn && st.street !== 'showdown') continue;
+    const live = st.players.filter((p: any) => p.inHand && !p.busted);
+    if (live.length !== 2) continue;
+    const [a, b] = live;
+    if (!a.hole || a.hole.length < 2 || !b.hole || b.hole.length < 2) continue;
+
+    const commLen = st.community.length;
+    const stages = [0, 3, 4, 5].filter(n => n <= commLen);
+    const timeline: Array<{ community: number; eq: Record<string, number> }> = [];
+
+    for (const n of stages) {
+      const cacheKey = `${st.tableId}-${st.handNumber}-${n}`;
+      let eq = equityCache.get(cacheKey);
+      if (!eq) {
+        try {
+          eq = headsUpEquity(a.hole, b.hole, st.community.slice(0, n));
+          equityCache.set(cacheKey, eq);
+          if (equityCache.size > 500) {
+            const first = equityCache.keys().next().value;
+            if (first) equityCache.delete(first);
+          }
+        } catch { continue; }
+      }
+      timeline.push({ community: n, eq: { [a.playerId]: eq.equityA, [b.playerId]: eq.equityB } });
+    }
+
+    if (timeline.length > 0) {
+      const current = timeline[timeline.length - 1];
+      equityByTable[st.tableId] = current.eq;
+      equityTimeline[st.tableId] = timeline;
+    }
+  }
+
+  broadcast({ type: "tournament", payload: { event: "hand_state", states, blindsByTable, equityByTable, equityTimeline } });
 };
 
 const broadcastActionStates = () => {
@@ -767,11 +808,72 @@ function tryStartHuMatch(): boolean {
   return true;
 }
 
-// --- Simple bot agent (MVP) ---
+// --- Bot agent with realistic play style ---
 const botDueAtMsByTable = new Map<string, number>();
-function scheduleBot(tableId: string, now: number, minDelay = 400, maxDelay = 900) {
+function scheduleBot(tableId: string, now: number, minDelay = 1200, maxDelay = 3000) {
   const due = now + Math.floor(minDelay + Math.random() * (maxDelay - minDelay));
   botDueAtMsByTable.set(tableId, due);
+}
+
+function botHandStrength(eng: GameEngine): number {
+  const pub = eng.getPublic();
+  const botPlayer = pub.players.find(p => p.playerId === BOT_ID);
+  if (!botPlayer?.hole || botPlayer.hole.length < 2) return 0.4;
+  const h = botPlayer.hole;
+  const r0 = h[0].rank, r1 = h[1].rank;
+  const suited = h[0].suit === h[1].suit;
+  const paired = r0 === r1;
+  const highCard = Math.max(r0, r1);
+  const gap = Math.abs(r0 - r1);
+  const connected = gap === 1;
+
+  let score = 0.3;
+  if (paired) score = highCard >= 10 ? 0.9 : highCard >= 7 ? 0.72 : 0.6;
+  else {
+    if (highCard === 14) score += 0.2;
+    else if (highCard >= 12) score += 0.12;
+    else if (highCard >= 10) score += 0.06;
+    if (suited) score += 0.08;
+    if (connected) score += 0.06;
+    if (gap <= 2) score += 0.03;
+  }
+
+  const comm = pub.community || [];
+  if (comm.length >= 3 && botPlayer.hole) {
+    const allCards = [...botPlayer.hole, ...comm];
+    const ranks = allCards.map(c => c.rank);
+    const suits = allCards.map(c => c.suit);
+    const rankSet = new Set(ranks);
+    const rankCounts = new Map<number, number>();
+    ranks.forEach(r => rankCounts.set(r, (rankCounts.get(r) || 0) + 1));
+    const suitCounts = new Map<string, number>();
+    suits.forEach(s => suitCounts.set(s, (suitCounts.get(s) || 0) + 1));
+    const maxSuit = Math.max(...suitCounts.values());
+    const maxRank = Math.max(...rankCounts.values());
+    const sorted = [...rankSet].sort((a, b) => a - b);
+    let maxRun = 1, run = 1;
+    for (let i = 1; i < sorted.length; i++) {
+      if (sorted[i] === sorted[i - 1] + 1) { run++; maxRun = Math.max(maxRun, run); }
+      else run = 1;
+    }
+
+    if (maxRank >= 4) score = 0.95;
+    else if (maxSuit >= 5) score = 0.92;
+    else if (maxRun >= 5) score = 0.9;
+    else if (maxRank === 3) score = Math.max(score, 0.82);
+    else if (maxRank === 2) {
+      const pairs = [...rankCounts.values()].filter(v => v >= 2).length;
+      score = Math.max(score, pairs >= 2 ? 0.72 : 0.58);
+    }
+    if (maxSuit === 4) score = Math.max(score, score + 0.08);
+    if (maxRun === 4) score = Math.max(score, score + 0.07);
+
+    const holeRanks = new Set(botPlayer.hole.map(c => c.rank));
+    const topPairOnBoard = comm.some(c => holeRanks.has(c.rank) && c.rank >= 10);
+    if (topPairOnBoard) score = Math.max(score, 0.65);
+  }
+
+  return Math.min(1, Math.max(0, score));
 }
 
 function botTick(now: number) {
@@ -782,30 +884,62 @@ function botTick(now: number) {
       if (a.actorPlayerId !== BOT_ID) { botDueAtMsByTable.delete(tableId); return; }
       const due = botDueAtMsByTable.get(tableId) ?? 0;
       if (now < due) return;
+
       const committed = (a.committed?.[BOT_ID] ?? 0);
       const toCall = Math.max(0, a.currentBet - committed);
       const can = (x: string) => (a.legalActions || []).includes(x as any);
-      // Policy
+      const pub = eng.getPublic();
+      const botPlayer = pub.players.find(p => p.playerId === BOT_ID);
+      const botChips = botPlayer?.chips ?? 0;
+      const potSize = pub.pot || 0;
+      const bb = pub.bigBlind || 50;
+      const strength = botHandStrength(eng);
+      const rng = Math.random();
+      const street = pub.street || 'preflop';
+      const potOdds = toCall > 0 ? toCall / (potSize + toCall) : 0;
+
+      const act = (type: string, amount?: number) => {
+        eng.applyAction(BOT_ID, type as any, amount);
+        broadcastHandStates();
+        broadcastActionStates();
+        const delay = type === 'fold' ? { min: 800, max: 1800 } :
+                      type === 'raise' || type === 'bet' ? { min: 1800, max: 3500 } :
+                      { min: 1200, max: 2800 };
+        scheduleBot(tableId, now, delay.min, delay.max);
+      };
+
       if (toCall > 0) {
-        if (can('call')) {
-          // For test stability: always call when facing a bet/all-in
-          eng.applyAction(BOT_ID, 'call');
-          broadcastHandStates();
-          broadcastActionStates();
-          scheduleBot(tableId, now);
-          return;
+        if (strength > 0.75 && can('raise')) {
+          const raiseAmt = Math.min(
+            botChips + committed,
+            Math.max(a.minRaise + a.currentBet, Math.floor(potSize * (0.6 + rng * 0.5)))
+          );
+          act('raise', Math.max(a.currentBet + a.minRaise, raiseAmt));
+        } else if (strength > potOdds + 0.05 || (strength > 0.45 && toCall <= bb * 2)) {
+          if (can('call')) act('call');
+          else if (can('fold')) act('fold');
+        } else if (strength > 0.35 && rng < 0.3) {
+          if (can('call')) act('call');
+          else if (can('fold')) act('fold');
+        } else {
+          if (can('fold')) act('fold');
+          else if (can('call')) act('call');
         }
-        if (can('fold')) { eng.applyAction(BOT_ID, 'fold'); scheduleBot(tableId, now); return; }
       } else {
-        if (can('bet') && Math.random() < 0.2) {
-          const minTo = Math.max(a.minRaise, a.currentBet || a.minRaise);
-          eng.applyAction(BOT_ID, 'bet', minTo);
-          broadcastHandStates();
-          broadcastActionStates();
-          scheduleBot(tableId, now);
-          return;
+        if (strength > 0.7 && can('bet')) {
+          const betSize = Math.max(
+            a.minRaise,
+            Math.floor(potSize * (0.5 + rng * 0.4))
+          );
+          act('bet', Math.min(botChips, betSize));
+        } else if (strength > 0.5 && rng < 0.35 && can('bet')) {
+          act('bet', Math.max(a.minRaise, Math.floor(potSize * 0.4)));
+        } else if (strength < 0.4 && rng < 0.12 && can('bet') && street !== 'preflop') {
+          act('bet', Math.max(a.minRaise, Math.floor(potSize * 0.55)));
+        } else {
+          if (can('check')) act('check');
+          else if (can('fold')) act('fold');
         }
-        if (can('check')) { eng.applyAction(BOT_ID, 'check'); broadcastHandStates(); broadcastActionStates(); scheduleBot(tableId, now); return; }
       }
     } catch {
       // ignore bot errors
