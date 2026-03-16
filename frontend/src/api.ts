@@ -18,8 +18,8 @@ export function connectWS(
   onStatus?: (status: 'open'|'retrying'|'closed', retries: number) => void
 ) {
   const wsUrl = BACKEND
-    ? (BACKEND.replace(/^http/, 'ws') + '/').replace(/\/$/, '')
-    : `${window.location.protocol === 'https:' ? 'wss:' : 'ws:'}//${window.location.host}`;
+    ? BACKEND.replace(/^http/, 'ws').replace(/\/$/, '') + '/ws'
+    : `${window.location.protocol === 'https:' ? 'wss:' : 'ws:'}//${window.location.host}/ws`;
   let ws: WebSocket | null = null;
   let retries = 0;
   const waitForHealth = async (): Promise<boolean> => {
