@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { adminLogin, listTables, huElo, adminResetSession, adminListProfiles } from '../api'
+import { adminLogin, listTables, huElo, adminResetSession, adminResetAll, adminListProfiles } from '../api'
 
 type ProfileRow = { coreId: string; displayName: string; avatarUrl: string }
 
@@ -78,11 +78,21 @@ export default function AdminPanel({ lobby: _lobby, setLobby: _setLobby, onSpect
               setLoading(true)
               try {
                 const r:any = await adminResetSession(token)
-                alert(r?.ok ? 'Session leaderboard reset' : JSON.stringify(r))
+                alert(r?.ok ? 'Session leaderboard reset (wins/matches → 0)' : JSON.stringify(r))
               }
               catch(e:any){ alert(e?.message || 'Session reset failed') }
               finally { setLoading(false) }
-            }}>Reset Session Leaderboard</button>
+            }}>Reset Wins/Matches</button>
+            <button disabled={loading} style={{ background: 'rgba(239,68,68,0.15)', border: '1px solid rgba(239,68,68,0.4)', color: '#f87171' }} onClick={async ()=>{
+              if (!confirm('This will permanently delete ALL leaderboard data, ELO ratings, and league stats. Continue?')) return
+              setLoading(true)
+              try {
+                const r:any = await adminResetAll(token)
+                alert(r?.ok ? 'Full reset complete — leaderboard, ELO & league cleared.' : JSON.stringify(r))
+              }
+              catch(e:any){ alert(e?.message || 'Full reset failed') }
+              finally { setLoading(false) }
+            }}>Full Leaderboard Reset</button>
             <button onClick={()=>{ setToken(''); try { sessionStorage.removeItem('pg_admin_token') } catch {} }}>Logout</button>
           </div>
 

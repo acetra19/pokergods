@@ -189,6 +189,13 @@ export async function adminResetSession(token: string) {
   try { return JSON.parse(txt) } catch { return { ok:true } }
 }
 
+export async function adminResetAll(token: string) {
+  const res = await fetch(`${BACKEND}/admin/hu/resetAll`, { method: 'POST', headers: authHeaders(token) })
+  const txt = await res.text()
+  if (!res.ok) throw new Error(txt || 'failed to reset all')
+  try { return JSON.parse(txt) } catch { return { ok:true } }
+}
+
 export async function adminListProfiles(token: string) {
   const res = await fetch(`${BACKEND}/admin/profiles`, { headers: authHeaders(token) })
   if (!res.ok) throw new Error('failed to load profiles')

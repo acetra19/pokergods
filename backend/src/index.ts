@@ -1248,4 +1248,16 @@ app.post('/admin/hu/resetSession', adminAuth, (_req, res) => {
   } catch (e:any) { res.status(500).json({ ok:false, error:String(e?.message||e) }) }
 });
 
+// Admin: full leaderboard reset (leaderboard + ELO + league)
+app.post('/admin/hu/resetAll', adminAuth, (_req, res) => {
+  try {
+    huLeaderboard.clear();
+    huElo.clear();
+    huLeague.clear();
+    huVs.clear();
+    persistHuDataDebounced();
+    res.json({ ok: true });
+  } catch (e: any) { res.status(500).json({ ok: false, error: String(e?.message || e) }) }
+});
+
 
