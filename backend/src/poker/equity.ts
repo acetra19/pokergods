@@ -5,7 +5,9 @@ import { SUITS, RANKS } from "./cards.js";
 function compareHands(a: ReturnType<typeof evaluateBestFive>, b: ReturnType<typeof evaluateBestFive>): number {
   if (a.category !== b.category) return a.category - b.category;
   for (let i = 0; i < a.kickers.length; i++) {
-    if (a.kickers[i] !== b.kickers[i]) return a.kickers[i] - b.kickers[i];
+    const ka = a.kickers[i];
+    const kb = b.kickers[i];
+    if (ka !== kb) return (ka ?? 0) - (kb ?? 0);
   }
   return 0;
 }
@@ -40,12 +42,14 @@ export function headsUpEquity(
   community: Card[],
   sampleLimit = 5000
 ): { equityA: number; equityB: number } {
-  const remaining = remainingDeck([...holeA, ...holeB, ...community]);
+  const ha = holeA.filter((c): c is Card => c != null);
+  const hb = holeB.filter((c): c is Card => c != null);
+  const remaining = remainingDeck([...ha, ...hb, ...community]);
   const needed = 5 - community.length;
 
   if (needed === 0) {
-    const evalA = evaluateBestFive([...holeA, ...community]);
-    const evalB = evaluateBestFive([...holeB, ...community]);
+    const evalA = evaluateBestFive([...ha, ...community]);
+    const evalB = evaluateBestFive([...hb, ...community]);
     const cmp = compareHands(evalA, evalB);
     if (cmp > 0) return { equityA: 100, equityB: 0 };
     if (cmp < 0) return { equityA: 0, equityB: 100 };
@@ -59,8 +63,8 @@ export function headsUpEquity(
     if (needed === 1) {
       for (const c of remaining) {
         const board = [...community, c];
-        const evalA = evaluateBestFive([...holeA, ...board]);
-        const evalB = evaluateBestFive([...holeB, ...board]);
+        const evalA = evaluateBestFive([...ha, ...board]);
+        const evalB = evaluateBestFive([...hb, ...board]);
         const cmp = compareHands(evalA, evalB);
         if (cmp > 0) winsA++;
         else if (cmp < 0) winsB++;
@@ -70,9 +74,12 @@ export function headsUpEquity(
     } else {
       for (let i = 0; i < remaining.length - 1; i++) {
         for (let j = i + 1; j < remaining.length; j++) {
-          const board = [...community, remaining[i], remaining[j]];
-          const evalA = evaluateBestFive([...holeA, ...board]);
-          const evalB = evaluateBestFive([...holeB, ...board]);
+          const ri = remaining[i];
+          const rj = remaining[j];
+          if (ri == null || rj == null) continue;
+          const board = [...community, ri, rj];
+          const evalA = evaluateBestFive([...ha, ...board]);
+          const evalB = evaluateBestFive([...hb, ...board]);
           const cmp = compareHands(evalA, evalB);
           if (cmp > 0) winsA++;
           else if (cmp < 0) winsB++;
@@ -87,13 +94,16 @@ export function headsUpEquity(
       const pool = remaining.slice();
       for (let d = 0; d < needed; d++) {
         const idx = Math.floor(Math.random() * pool.length);
-        drawn.push(pool[idx]);
-        pool[idx] = pool[pool.length - 1];
+        const card = pool[idx];
+        if (card == null) break;
+        drawn.push(card);
+        const last = pool[pool.length - 1];
+        pool[idx] = last!;
         pool.pop();
       }
       const board = [...community, ...drawn];
-      const evalA = evaluateBestFive([...holeA, ...board]);
-      const evalB = evaluateBestFive([...holeB, ...board]);
+      const evalA = evaluateBestFive([...ha, ...board]);
+      const evalB = evaluateBestFive([...hb, ...board]);
       const cmp = compareHands(evalA, evalB);
       if (cmp > 0) winsA++;
       else if (cmp < 0) winsB++;

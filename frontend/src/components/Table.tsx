@@ -1345,12 +1345,11 @@ const [showEmoji, setShowEmoji] = useState(false)
           </div>
           {/* Equity bar for all-in situations */}
           {equity && (anyAllIn || street === 'showdown') && (()=>{
-            const livePlayers = (myTable?.players || []).filter((p:any) => p.inHand && !p.busted)
-            if (livePlayers.length !== 2) return null
-            const isPlaying = wallet && livePlayers.some((p:any) => p.playerId === wallet)
-            const [pA, pB] = isPlaying
-              ? [livePlayers.find((p:any) => p.playerId === wallet)!, livePlayers.find((p:any) => p.playerId !== wallet)!]
-              : livePlayers
+            const keys = Object.keys(equity)
+            if (keys.length !== 2) return null
+            const isPlaying = wallet && keys.includes(wallet)
+            const pAId = isPlaying ? wallet : keys[0]
+            const pBId = isPlaying ? keys.find(k => k !== wallet)! : keys[1]
             const tl = equityTimelineRef.current
             const visibleEq = (()=>{
               if (!tl.length) return equity
@@ -1358,8 +1357,8 @@ const [showEmoji, setShowEmoji] = useState(false)
               const match = [...tl].reverse().find(t => t.community <= stage)
               return match ? match.eq : equity
             })()
-            const eqA = visibleEq[pA.playerId] ?? null
-            const eqB = visibleEq[pB.playerId] ?? null
+            const eqA = visibleEq[pAId] ?? null
+            const eqB = visibleEq[pBId] ?? null
             if (eqA === null && eqB === null) return null
             const pctA = eqA ?? (eqB !== null ? 100 - eqB : 50)
             const pctB = eqB ?? (eqA !== null ? 100 - eqA : 50)
@@ -1376,8 +1375,8 @@ const [showEmoji, setShowEmoji] = useState(false)
                   <div className="equity-bar-villain" style={{ width: `${pctB}%`, background: colorOf(pctB) }} />
                 </div>
                 <div className="equity-bar-names">
-                  <span>{nameOf(pA.playerId)}</span>
-                  <span>{nameOf(pB.playerId)}</span>
+                  <span>{nameOf(pAId)}</span>
+                  <span>{nameOf(pBId)}</span>
                 </div>
               </div>
             )

@@ -684,9 +684,11 @@ const broadcastHandStates = () => {
   for (const st of states) {
     const isAllIn = st.players.some((p: any) => p.inHand && !p.busted && p.allIn);
     if (!isAllIn && st.street !== 'showdown') continue;
-    const live = st.players.filter((p: any) => p.inHand && !p.busted);
-    if (live.length !== 2) continue;
-    const [a, b] = live;
+    // Use players with hole cards (not !busted): after resolveShowdown loser is busted so filter would yield 1 player
+    const withHole = st.players.filter((p: any) => p.hole && p.hole.length >= 2);
+    if (withHole.length !== 2) continue;
+    const a = withHole[0]!;
+    const b = withHole[1]!;
     if (!a.hole || a.hole.length < 2 || !b.hole || b.hole.length < 2) continue;
 
     const commLen = st.community.length;
@@ -710,7 +712,7 @@ const broadcastHandStates = () => {
     }
 
     if (timeline.length > 0) {
-      const current = timeline[timeline.length - 1];
+      const current = timeline[timeline.length - 1]!;
       equityByTable[st.tableId] = current.eq;
       equityTimeline[st.tableId] = timeline;
     }
@@ -820,8 +822,10 @@ function botHandStrength(eng: GameEngine): number {
   const botPlayer = pub.players.find(p => p.playerId === BOT_ID);
   if (!botPlayer?.hole || botPlayer.hole.length < 2) return 0.4;
   const h = botPlayer.hole;
-  const r0 = h[0].rank, r1 = h[1].rank;
-  const suited = h[0].suit === h[1].suit;
+  const c0 = h[0], c1 = h[1];
+  if (!c0 || !c1) return 0.4;
+  const r0 = c0.rank, r1 = c1.rank;
+  const suited = c0.suit === c1.suit;
   const paired = r0 === r1;
   const highCard = Math.max(r0, r1);
   const gap = Math.abs(r0 - r1);
@@ -853,7 +857,8 @@ function botHandStrength(eng: GameEngine): number {
     const sorted = [...rankSet].sort((a, b) => a - b);
     let maxRun = 1, run = 1;
     for (let i = 1; i < sorted.length; i++) {
-      if (sorted[i] === sorted[i - 1] + 1) { run++; maxRun = Math.max(maxRun, run); }
+      const prev = sorted[i - 1];
+      if (prev !== undefined && sorted[i] === prev + 1) { run++; maxRun = Math.max(maxRun, run); }
       else run = 1;
     }
 
