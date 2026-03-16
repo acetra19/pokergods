@@ -113,11 +113,6 @@ function App() {
     try { window.location.hash = `/${r}` } catch { setView(route) }
   }
 
-  const requireAuth = (target: View) => {
-    if (!loggedIn) { go('login'); return }
-    go(target)
-  }
-
   // Landing — shown when not logged in
   if (view === 'landing' && !loggedIn) {
     return <Landing onEnter={() => go('login')} />
