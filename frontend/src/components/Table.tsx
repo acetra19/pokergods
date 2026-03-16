@@ -273,32 +273,34 @@ const [showEmoji, setShowEmoji] = useState(false)
               }
             }
             if (st.lastWinners && st.lastWinners.length && st.street === 'showdown' && Array.isArray(st.showdownInfo) && st.showdownInfo.length>0) {
-              const winSig = `${st.tableId}-${st.handNumber}-winfloat`
-              if (lastWinFloatSigRef.current !== winSig) {
-                lastWinFloatSigRef.current = winSig
-                // Skip float+sound when match ends — triggerOverlay handles that case
-                const isMatchEnd = !!(st.players?.some((p:any)=> p.busted || (p.chips ?? 0) <= 0))
-                if (!isMatchEnd) {
-                  const winner = st.lastWinners[0]
-                  const wName = nameOf(winner?.playerId)
-                  const wInfo = (st.showdownInfo || []).find((s:any) => s.playerId === winner?.playerId)
-                  const wCat = wInfo?.category || ''
-                  const wIsMe = winner?.playerId === wallet
-                  const showWinnerFloat = () => {
-                    if (audioAllowedRef.current) playSoundCore('win', () => { resumeAudio(); playWin() })
-                    if (wCat) {
-                      addFloat(wIsMe ? `You win with ${wCat}!` : `${wName} wins with ${wCat}`, 38, 22, 20, wIsMe ? 'action-win-hero' : 'action-win-villain')
-                    } else {
-                      addFloat(wIsMe ? 'You win!' : `${wName} wins!`, 38, 22, 20, wIsMe ? 'action-win-hero' : 'action-win-villain')
+              const serverCards = Array.isArray(st.community) ? st.community.length : 0
+              // Only show winner float after full board is run out (5 cards). Preflop all-in: server sends winners before runout — wait for 5 cards.
+              if (serverCards < 5) { /* skip until runout complete */ } else {
+                const winSig = `${st.tableId}-${st.handNumber}-winfloat`
+                if (lastWinFloatSigRef.current !== winSig) {
+                  lastWinFloatSigRef.current = winSig
+                  const isMatchEnd = !!(st.players?.some((p:any)=> p.busted || (p.chips ?? 0) <= 0))
+                  if (!isMatchEnd) {
+                    const winner = st.lastWinners[0]
+                    const wName = nameOf(winner?.playerId)
+                    const wInfo = (st.showdownInfo || []).find((s:any) => s.playerId === winner?.playerId)
+                    const wCat = wInfo?.category || ''
+                    const wIsMe = winner?.playerId === wallet
+                    const showWinnerFloat = () => {
+                      if (audioAllowedRef.current) playSoundCore('win', () => { resumeAudio(); playWin() })
+                      if (wCat) {
+                        addFloat(wIsMe ? `You win with ${wCat}!` : `${wName} wins with ${wCat}`, 38, 22, 20, wIsMe ? 'action-win-hero' : 'action-win-villain')
+                      } else {
+                        addFloat(wIsMe ? 'You win!' : `${wName} wins!`, 38, 22, 20, wIsMe ? 'action-win-hero' : 'action-win-villain')
+                      }
                     }
+                    const waitForReveal = () => {
+                      if (revealedCountRef.current >= 5) { showWinnerFloat(); return }
+                      setTimeout(waitForReveal, 300)
+                    }
+                    if (revealedCountRef.current >= 5) showWinnerFloat()
+                    else waitForReveal()
                   }
-                  const waitForReveal = () => {
-                    if (revealedCountRef.current >= 5) { showWinnerFloat(); return }
-                    setTimeout(waitForReveal, 300)
-                  }
-                  const serverCards = Array.isArray(st.community) ? st.community.length : 0
-                  if (serverCards < 5 || revealedCountRef.current >= 5) { showWinnerFloat() }
-                  else { waitForReveal() }
                 }
               }
             }
@@ -1381,8 +1383,16 @@ const [showEmoji, setShowEmoji] = useState(false)
             )
           })()}
           {toast && <div className="toast">{toast}</div>}
-          {/* Panels appear above toggle buttons */}
-          <div className="table-panels-area">
+          {/* Toggle buttons first; panels open downward below */}
+          <div className="table-panel-toggles">
+            <button className={`panel-toggle ${logOpen ? 'active' : ''}`} onClick={()=> setLogOpen(!logOpen)}>
+              <span className="panel-toggle-icon">📋</span>{logOpen ? 'Hide Log' : 'Game Log'}
+            </button>
+            <button className={`panel-toggle ${chatOpen ? 'active' : ''}`} onClick={()=> setChatOpen(!chatOpen)}>
+              <span className="panel-toggle-icon">💬</span>{chatOpen ? 'Hide Chat' : 'Chat'}
+            </button>
+          </div>
+          <div className="table-panels-area table-panels-below">
             {logOpen && (
               <div className="game-log-panel">
                 <div className="panel-header">Game Log</div>
@@ -1409,15 +1419,6 @@ const [showEmoji, setShowEmoji] = useState(false)
                 </form>
               </div>
             )}
-          </div>
-          {/* Toggle buttons for Log and Chat */}
-          <div className="table-panel-toggles">
-            <button className={`panel-toggle ${logOpen ? 'active' : ''}`} onClick={()=> setLogOpen(!logOpen)}>
-              <span className="panel-toggle-icon">📋</span>{logOpen ? 'Hide Log' : 'Game Log'}
-            </button>
-            <button className={`panel-toggle ${chatOpen ? 'active' : ''}`} onClick={()=> setChatOpen(!chatOpen)}>
-              <span className="panel-toggle-icon">💬</span>{chatOpen ? 'Hide Chat' : 'Chat'}
-            </button>
           </div>
           </div>
         {actionState && (()=>{
