@@ -1,4 +1,5 @@
-export const BACKEND = import.meta.env.VITE_BACKEND_URL ?? "http://localhost:8080";
+export const BACKEND = import.meta.env.VITE_BACKEND_URL
+  ?? (window.location.hostname === 'localhost' ? 'http://localhost:8080' : '');
 
 export async function getLobby() {
   const res = await fetch(`${BACKEND}/lobby`);
@@ -16,7 +17,9 @@ export function connectWS(
   onMessage: (msg: unknown) => void,
   onStatus?: (status: 'open'|'retrying'|'closed', retries: number) => void
 ) {
-  const wsUrl = (BACKEND.replace(/^http/, "ws") + "/").replace(/\/$/, "");
+  const wsUrl = BACKEND
+    ? (BACKEND.replace(/^http/, 'ws') + '/').replace(/\/$/, '')
+    : `${window.location.protocol === 'https:' ? 'wss:' : 'ws:'}//${window.location.host}`;
   let ws: WebSocket | null = null;
   let retries = 0;
   const waitForHealth = async (): Promise<boolean> => {
