@@ -6,6 +6,7 @@ import { getSeating, handState, handActionState, handAction, connectWS, getProfi
 import { formatCardLabel } from '../utils/cards'
 import { playChip, playDeal, playWin, resumeAudio, playWarnTick, playBankStart, playCheck, playLose, playOverlayCue, playShuffle, playClick } from '../utils/sound'
 import { evaluateBestFive as evalClient, compareHands as cmpClient } from '../utils/hand'
+import { SeatItem, type SeatItemProps } from './SeatItem'
 
 const SOUND_COOLDOWN_MS: Record<string, number> = {
   chip: 180,
@@ -59,6 +60,8 @@ const [showEmoji, setShowEmoji] = useState(false)
   const prevHandSig = useRef<string>('')
   const prevActionSig = useRef<string>('')
   const prevActionRef = useRef<any | null>(null)
+  const handRef = useRef<any>(null)
+  const myTableRef = useRef<any>(null)
   const [nowMs, setNowMs] = useState<number>(Date.now())
   const prevCommLenRef = useRef<number>(0)
   const prevStreetRef = useRef<string | null>(null)
@@ -78,6 +81,7 @@ const [showEmoji, setShowEmoji] = useState(false)
   const [revealedCount, setRevealedCount] = useState<number>(0)
   const revealedCountRef = useRef<number>(0)
   useEffect(()=>{ revealedCountRef.current = revealedCount }, [revealedCount])
+  useEffect(()=>{ handRef.current = hand }, [hand])
   // Clientseitiger Chip-Stand, der während Showdown bis zur vollständigen Reveal nicht vorgezogen wird
   const displayChipsRef = useRef<Record<string, number>>({})
   const committedRef = useRef<Record<string, number>>({})
@@ -276,9 +280,8 @@ const [showEmoji, setShowEmoji] = useState(false)
         } catch {}
       }
       if (m?.type === 'tournament' && m.payload?.event === 'hu_postmatch') {
-        // Nur Teilnehmer navigieren zur Summary, Spectators nicht
         try {
-          const st = (hand && hand[0]) || myTable
+          const st = (handRef.current && handRef.current[0]) || myTableRef.current
           const amParticipant = !!(st && st.players && Array.isArray(st.players) && st.players.some((p:any)=> p?.playerId === wallet))
           if (!amParticipant) return
           // If overlay not visible, use last cached showdown state (race/lagsafe)
@@ -300,7 +303,7 @@ const [showEmoji, setShowEmoji] = useState(false)
       if ((m as any)?.type === 'emoji') {
         try {
           const e = (m as any).payload
-          const currId = (hand && hand[0]?.tableId) || renderTables[0]?.tableId
+          const currId = (handRef.current && handRef.current[0]?.tableId) || renderTables[0]?.tableId
           if (e && e.tableId && currId && e.tableId === currId) {
             addFloat(String(e.emoji || '🙂'), 68, 24, 28)
           }
@@ -409,6 +412,7 @@ const [showEmoji, setShowEmoji] = useState(false)
     if (postHoldUntilMsRef.current > Date.now() && tableSnapshotRef.current) return tableSnapshotRef.current
     return null
   }, [hand, wallet, tableId])
+  useEffect(()=>{ myTableRef.current = myTable }, [myTable])
   // Detect new match (tableId change)
   useEffect(()=>{
     const currId = myTable?.tableId ?? null
@@ -1009,227 +1013,8 @@ const [showEmoji, setShowEmoji] = useState(false)
     return () => clearInterval(id)
   }, [])
 
-  const HoleCard = memo(({ c }: { c: any }) => (
-    <span className={`card-sm suit-${c.suit}`} data-suit={c.suit}>{formatCardLabel(c)}</span>
-  ))
-  const HoleCardWrap = ({ front, revealed, glow }: { front: any, revealed: boolean, glow?: 'win'|'lose'|'tie'|null }) => (
-    <span className={`card-wrap ${revealed? 'revealed':''} ${glow? `glow glow-${glow}`: ''}`}>
-      <span className="face-back"><span className="card-back-sm" /></span>
-      <span className="face-front"><HoleCard c={front} /></span>
-    </span>
-  )
-
-  type SeatItemProps = {
-    seat: { playerId: string; seatIndex: number; chips: number }
-    seatsLength: number
-    seatStyle: CSSProperties
-    player: any | null
-    dealerIndex: number | null
-    actionState: any | null
-    wallet?: string
-    remaining: number | null
-    bankMs: number
-    glowEpoch: number
-    tableState: any
-  }
-  const SeatItem = memo(({ seat, seatsLength, seatStyle, player, dealerIndex, actionState, wallet, remaining, bankMs, glowEpoch, tableState }: SeatItemProps) => {
-    const isActor = !!actionState && actionState.actorSeatIndex === seat.seatIndex
-    const isHero = !!wallet && seat.playerId === wallet
-    const tablePlayer = useMemo(() => (tableState && Array.isArray(tableState.players)) ? tableState.players.find((p:any)=> p.playerId === seat.playerId) : null, [tableState, seat.playerId])
-    const heroHole = isHero ? (tablePlayer?.hole ?? player?.hole ?? null) : null
-    // reveal villain holecards nur bei Serverflag oder Showdown
-    const showHole = isHero ? !!heroHole : (revealVillain ? !!(tablePlayer?.hole ?? player?.hole) : false)
-    // blinds (HU): Dealer ist SB, der andere BB
-    const isSB = dealerIndex != null && seatsLength === 2 && seat.seatIndex === dealerIndex
-    const isBB = dealerIndex != null && seatsLength === 2 && seat.seatIndex !== dealerIndex
-    // compute decision progress for actor seat
-    let decPct = 0
-    let bankMode = false
-    let warnMode = false
-    if (isActor && actionState) {
-      const primaryRemaining = Math.max(0, (actionState.actorDeadlineMs as number) - nowMs)
-      const PRIMARY_TOTAL = 20000 // UI default; server kann abweichen
-      decPct = Math.max(0, Math.min(100, 100 - Math.floor((primaryRemaining / PRIMARY_TOTAL) * 100)))
-      warnMode = primaryRemaining > 0 && primaryRemaining <= 3000
-      if (primaryRemaining <= 0) {
-        bankMode = true
-        const bankRemaining = Math.max(0, (actionState.actorTimebankMs as number) || 0)
-        const BANK_TOTAL = 30000
-        decPct = 100 - Math.floor((bankRemaining / BANK_TOTAL) * 100)
-      }
-    }
-    let villainGlow: 'win'|'lose'|'tie'|null = null
-    const allowGlow = !isHero && revealVillain
-    if (allowGlow) {
-      try {
-        const st = tableState
-        const community = (st?.community || []) as Array<{suit:string,rank:number}>
-        const hero = (st && wallet) ? (st.players?.find((p:any)=> p.playerId===wallet) || null) : null
-        const heroHole = hero && hero.hole ? hero.hole as Array<{suit:string,rank:number}> : null
-        const villainHole = (tablePlayer?.hole ?? player?.hole) as Array<{suit:string,rank:number}> | undefined
-        // nur mit aktuell sichtbaren Community-Karten vergleichen (revealedCount)
-        const visibleComm = community.slice(0, Math.max(0, revealedCount))
-        if (heroHole && villainHole && heroHole.length===2 && villainHole.length===2) {
-          const heroEval = evalClient([ ...heroHole, ...visibleComm ] as any)
-          const villEval = evalClient([ ...villainHole, ...visibleComm ] as any)
-          const diff = cmpClient(heroEval, villEval)
-          // Mapping:
-          // diff > 0 → Hero ahead → Villain behind → green (glow-win)
-          // diff < 0 → Villain ahead → red (glow-lose)
-          // diff = 0 → tie → yellow (glow-tie)
-          if (diff > 0) villainGlow = 'win'
-          else if (diff < 0) villainGlow = 'lose'
-          else villainGlow = 'tie'
-        }
-      } catch {}
-    }
-    const bloomActive = !!seatBloom[seat.playerId]
-    return (
-      <div className={`seat ${isActor?'actor actor-pulse':''} ${bloomActive ? 'seat-bloom' : ''}`} style={seatStyle}>
-        {player?.allIn && (<div className="allin-badge" title="Player is all-in">ALL‑IN</div>)}
-        {street === 'preflop' && isSB && (<div className="blind-badge sb" title="Small Blind">SB</div>)}
-        {street === 'preflop' && isBB && (<div className="blind-badge bb" title="Big Blind">BB</div>)}
-          <div className={`row ${bloomActive ? 'row-bloom' : ''}`}>
-          <div className="avatar-wrap">
-            <svg className={`ring ${bankMode? 'bank':''} ${warnMode? 'warn':''}`} viewBox="0 0 44 44">
-              <circle className="bg" cx="22" cy="22" r="20" />
-              <circle className="fg" cx="22" cy="22" r="20" style={{ strokeDasharray: 2*Math.PI*20, strokeDashoffset: ((100-decPct)/100)*(2*Math.PI*20) }} />
-            </svg>
-            {(() => {
-              const pid = seat.playerId
-              const cached = profileNameCache.current[pid]
-              const avatar = cached?.avatar
-              if (avatar) {
-                return <img src={avatar} alt="avatar" className="avatar" style={{ width:34, height:34, borderRadius:'50%', objectFit:'cover' }} />
-              }
-              const dispName = cached?.name ?? pid
-              const letters = (dispName || '').toString().trim().replace(/[^A-Za-z]/g, '').slice(0,2).toUpperCase()
-              return <div className="avatar">{letters || (dispName || pid).toString().slice(0,2).toUpperCase()}</div>
-            })()}
-            
-          </div>
-          <div>
-            <div style={{ fontWeight:700 }} data-prof-epoch={profileEpoch}>{(() => {
-              const pid = seat.playerId
-              const cached = profileNameCache.current[pid]
-              if (cached) return cached.name
-              // async fetch username, fallback to wallet
-              getProfile(pid).then((r:any)=>{
-                const name = (r && r.profile && r.profile.username) ? String(r.profile.username) : pid
-                const av = (r && r.profile && r.profile.avatarUrl) ? String(r.profile.avatarUrl) : undefined
-                profileNameCache.current = { ...profileNameCache.current, [pid]: { name, avatar: av } }
-                setProfileEpoch((v)=> v + 1)
-              }).catch(()=>{})
-              return pid
-            })()}</div>
-            <div className={`chip-pill ${bloomActive ? 'chip-bloom' : ''}`}>{(() => {
-              const pid = seat.playerId
-              const serverStack = player?.chips ?? seat.chips ?? 0
-              const committedNow = Number(actionState?.committed?.[pid] ?? committedRef.current?.[pid] ?? (hand && (hand[0]?.showdownCommitted?.[pid] ?? hand[0]?.committed?.[pid])) ?? 0)
-              const isAllInFlow = inRevealUIRef.current || anyAllIn || (hand && hand[0]?.allInLocked && hand[0]?.bettingClosed) || street === 'showdown'
-              const useFrozen = isAllInFlow && Number.isFinite(displayChipsRef.current?.[pid])
-              const frozen = useFrozen ? Number(displayChipsRef.current?.[pid]) : null
-              const display = useFrozen ? frozen! : (isAllInFlow ? Math.max(0, serverStack - committedNow) : serverStack)
-              return `${display} chips`
-            })()}</div>
-          </div>
-        </div>
-        <div className={`decbar ${bankMode? 'bank':''}`}> <div className="fill" style={{ width: `${decPct}%` }} /> </div>
-        {isActor && (
-          <div className="time-pill">
-            {remaining && remaining > 0 ? `${remaining}s` : bankMs>0 ? `TB ${Math.ceil(bankMs/1000)}s` : '0s'}
-          </div>
-        )}
-        {/* Kleine visuelle Chipstapel pro Spieler */}
-        <div className="seat-chips" aria-hidden>
-          {(() => {
-            const pid = seat.playerId
-            const serverStack = player?.chips ?? seat.chips ?? 0
-            const committedNow = Number(actionState?.committed?.[pid] ?? committedRef.current?.[pid] ?? (hand && (hand[0]?.showdownCommitted?.[pid] ?? hand[0]?.committed?.[pid])) ?? 0)
-            const isAllInFlow = inRevealUIRef.current || anyAllIn || (hand && hand[0]?.allInLocked && hand[0]?.bettingClosed) || street === 'showdown'
-            const useFrozen = isAllInFlow && Number.isFinite(displayChipsRef.current?.[pid])
-            const stackValue = useFrozen ? Number(displayChipsRef.current?.[pid]) : (isAllInFlow ? Math.max(0, serverStack - committedNow) : serverStack)
-            const c = Math.min(6, stackValue > 2000 ? 6 : stackValue > 1000 ? 5 : stackValue > 500 ? 4 : 3)
-            const cx = 32, cy = 18
-            return Array.from({ length: c }).map((_, i) => {
-              const angle = (i / c) * (Math.PI * 2)
-              const r = 8 + (i % 2)
-              const x = cx + Math.cos(angle) * r
-              const y = cy + Math.sin(angle) * r
-              const color = i % 3 === 0 ? 'blue' : (i % 3 === 1 ? 'green' : '')
-              return <span key={i} className={`seat-chip ${color}`} style={{ left: x, top: y }} />
-            })
-          })()}
-        </div>
-        {isHero ? (
-          <div className="hole-wrap deal-in" style={{ marginTop:6, display:'flex', justifyContent:'center', gap:6 }}>
-            {heroHole ? (
-              heroHole.map((c:any, i:number)=> (
-                <span key={i}><HoleCardWrap front={c} revealed={true} /></span>
-              ))
-            ) : (
-              <>
-                <span className="card-back-sm" />
-                <span className="card-back-sm" />
-              </>
-            )}
-          </div>
-        ) : (
-          <div className="hole-wrap deal-in villain" style={{ marginTop:6, display:'flex', justifyContent:'center', gap:6 }}>
-            {(tablePlayer?.hole ?? player?.hole) ? (
-              showHole
-                ? (tablePlayer?.hole ?? player?.hole).map((c:any, i:number)=> (
-                    <span key={`${seat.seatIndex}-${i}-${glowEpoch}`}>
-                      <HoleCardWrap front={c} revealed={true} glow={villainGlow} />
-                    </span>
-                  ))
-                : (<>
-                    <span className="card-back-sm" />
-                    <span className="card-back-sm" />
-                  </>)
-            ) : (
-              <>
-                <span className="card-back-sm" />
-                <span className="card-back-sm" />
-              </>
-            )}
-          </div>
-        )}
-        {dealerIndex === seat.seatIndex && (
-          <div className="dealer">D</div>
-        )}
-      </div>
-    )
-  }, (prev, next) => {
-    // custom comparator to avoid unnecessary re-renders
-    const shallowEq = (a:any,b:any) => a===b
-    const prevIsActor = !!prev.actionState && prev.actionState.actorSeatIndex === prev.seat.seatIndex
-    const nextIsActor = !!next.actionState && next.actionState.actorSeatIndex === next.seat.seatIndex
-    return (
-      prev.seat.playerId === next.seat.playerId &&
-      prev.seat.seatIndex === next.seat.seatIndex &&
-      JSON.stringify(prev.seatStyle) === JSON.stringify(next.seatStyle) &&
-      prev.seat.chips === next.seat.chips &&
-      prev.seatsLength === next.seatsLength &&
-      shallowEq(prev.dealerIndex, next.dealerIndex) &&
-      (
-        (prevIsActor || nextIsActor)
-          ? (
-            (prev.actionState?.actorSeatIndex === next.actionState?.actorSeatIndex) &&
-            (prev.actionState?.actorDeadlineMs === next.actionState?.actorDeadlineMs) &&
-            (prev.actionState?.currentBet === next.actionState?.currentBet) &&
-            (prev.actionState?.minRaise === next.actionState?.minRaise) &&
-            (prev.bankMs === next.bankMs) &&
-            (prev.remaining === next.remaining)
-          )
-          : true
-      ) &&
-      (prev.wallet === next.wallet) &&
-      (prev.glowEpoch === next.glowEpoch) &&
-      // compare hole presence for own wallet only
-      (!!prev.player?.hole === !!next.player?.hole)
-    )
-  })
+  // SeatItem is now extracted to SeatItem.tsx for stable memoization
+  // (SeatItem defined in SeatItem.tsx with stable memo identity)
 
   return (
       <div className={`${overlayCooldown ? 'overlay-cooldown' : ''} pg-game-in`} style={{ maxWidth: 1100, margin: '1.4rem auto' }} onContextMenu={(e)=>{
@@ -1431,15 +1216,28 @@ const [showEmoji, setShowEmoji] = useState(false)
               <SeatItem key={s.seatIndex}
                 seat={s}
                 seatsLength={t.seats.length}
-                    seatStyle={seatStyle}
+                seatStyle={seatStyle}
                 player={p || null}
                 dealerIndex={dealerIndex}
                 actionState={actionState}
                 wallet={wallet}
                 remaining={remaining}
                 bankMs={bankMs}
-                    glowEpoch={revealedCount}
-                    tableState={myTable}
+                glowEpoch={revealedCount}
+                tableState={myTable}
+                nowMs={nowMs}
+                street={street}
+                anyAllIn={anyAllIn}
+                revealVillain={revealVillain}
+                revealedCount={revealedCount}
+                seatBloom={seatBloom}
+                hand={hand}
+                profileNameCache={profileNameCache}
+                profileEpoch={profileEpoch}
+                setProfileEpoch={setProfileEpoch}
+                displayChipsRef={displayChipsRef}
+                inRevealUIRef={inRevealUIRef}
+                committedRef={committedRef}
               />
             )
             })}
