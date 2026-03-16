@@ -165,10 +165,18 @@ function App() {
   if (view === 'setup' && loggedIn) {
     return (
       <ProfileSetup wallet={wallet} onComplete={() => {
+        try {
+          const cached = localStorage.getItem(`profile:${wallet}`)
+          if (cached) {
+            const p = JSON.parse(cached)
+            if (p?.username) setDisplayName(p.username)
+          }
+        } catch {}
         getProfile(wallet).then((res: any) => {
           const p = res?.profile
           if (p?.username) setDisplayName(p.username)
         }).catch(() => {})
+        setProfileChecked(true)
         go('hub')
       }} />
     )

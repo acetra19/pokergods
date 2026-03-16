@@ -278,8 +278,8 @@ export async function getProfile(wallet: string) {
   if (!res.ok) throw new Error('failed to load profile')
   return res.json()
 }
-export async function saveProfile(wallet: string, payload: { username: string, avatarUrl?: string }) {
-  const res = await fetch(`${BACKEND}/profile/${encodeURIComponent(wallet)}`, { method:'POST', headers:{ 'Content-Type':'application/json' }, body: JSON.stringify(payload) })
+export async function saveProfile(wallet: string, payload: { username: string, avatarUrl?: string }, signal?: AbortSignal) {
+  const res = await fetch(`${BACKEND}/profile/${encodeURIComponent(wallet)}`, { method:'POST', headers:{ 'Content-Type':'application/json' }, body: JSON.stringify(payload), signal })
   if (!res.ok) throw new Error('failed to save profile')
   return res.json()
 }

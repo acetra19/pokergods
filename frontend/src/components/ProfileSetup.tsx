@@ -43,14 +43,20 @@ export default function ProfileSetup({ wallet, onComplete }: Props) {
     if (trimmed.length < 2 || trimmed.length > 20) { setError('Name must be 2–20 characters.'); return }
     setSaving(true)
     setError('')
+    let done = false
+    const finish = () => { if (done) return; done = true; onComplete() }
+    const safetyTimer = setTimeout(finish, 4000)
     try {
-      await saveProfile(wallet, { username: trimmed, avatarUrl: avatarUrl.split('?')[0] })
-      try {
-        localStorage.setItem(`profile:${wallet}`, JSON.stringify({ username: trimmed, avatarUrl }))
-      } catch {}
-      onComplete()
+      const ctrl = new AbortController()
+      const fetchTimer = setTimeout(() => ctrl.abort(), 6000)
+      await saveProfile(wallet, { username: trimmed, avatarUrl: avatarUrl.split('?')[0] }, ctrl.signal)
+      clearTimeout(fetchTimer)
+      try { localStorage.setItem(`profile:${wallet}`, JSON.stringify({ username: trimmed, avatarUrl })) } catch {}
+      finish()
     } catch {
-      setError('Could not save — please retry.')
+      clearTimeout(safetyTimer)
+      if (!done) { setError('Could not save — please retry.') }
+    } finally {
       setSaving(false)
     }
   }
