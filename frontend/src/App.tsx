@@ -223,15 +223,15 @@ function App() {
       {view === 'hub' ? (
         <div className="pg-hub">
           <div className="pg-hub-cards">
-            <div className="pg-hub-card" onClick={() => go('hu')}>
+            <div className="pg-hub-card pg-hub-card-primary" onClick={() => go('hu')}>
               <div className="pg-hub-card-icon">1v1</div>
-              <div className="pg-hub-card-title">Heads-Up Match</div>
-              <div className="pg-hub-card-desc">Ranked match against another player.</div>
+              <div className="pg-hub-card-title">Heads‑Up Match</div>
+              <div className="pg-hub-card-desc">Ranked 1v1 heads‑up poker. This is the main mode.</div>
             </div>
-            <div className="pg-hub-card" onClick={() => go('cashgames')}>
-              <div className="pg-hub-card-icon">🃏</div>
-              <div className="pg-hub-card-title">Cash Tables</div>
-              <div className="pg-hub-card-desc">Join or spectate open tables.</div>
+            <div className="pg-hub-card pg-hub-card-secondary" onClick={() => go('cashgames')}>
+              <div className="pg-hub-card-icon">👁️</div>
+              <div className="pg-hub-card-title">Spectate Cash Tables</div>
+              <div className="pg-hub-card-desc">Watch live cash tables in spectator‑only mode.</div>
             </div>
           </div>
         </div>
