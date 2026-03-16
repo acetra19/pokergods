@@ -682,9 +682,11 @@ const broadcastHandStates = () => {
   const equityByTable: Record<string, Record<string, number>> = {};
   const equityTimeline: Record<string, Array<{ community: number; eq: Record<string, number> }>> = {};
   for (const st of states) {
-    const isAllIn = st.players.some((p: any) => p.inHand && !p.busted && p.allIn);
-    if (!isAllIn && st.street !== 'showdown') continue;
-    // Use players with hole cards (not !busted): after resolveShowdown loser is busted so filter would yield 1 player
+    const inHand = st.players.filter((p: any) => p.inHand && !p.busted);
+    const bothAllIn = inHand.length === 2 && inHand.every((p: any) => p.allIn);
+    const atShowdown = st.street === 'showdown';
+    // Only send equity when runout in progress (both all-in) or showdown — not when one is all-in waiting for the other to act
+    if (!atShowdown && !bothAllIn) continue;
     const withHole = st.players.filter((p: any) => p.hole && p.hole.length >= 2);
     if (withHole.length !== 2) continue;
     const a = withHole[0]!;

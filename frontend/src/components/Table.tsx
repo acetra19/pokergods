@@ -51,6 +51,16 @@ export default function TableView({ wallet, tableId }: { wallet?: string, tableI
   const audioAllowedRef = useRef<boolean>(false)
   const [overlayCooldown, setOverlayCooldown] = useState<boolean>(false)
   const [seatBloom, setSeatBloom] = useState<Record<string, number>>({})
+  const [tableZoom, setTableZoom] = useState(() => {
+    try {
+      const z = localStorage.getItem('pg_table_zoom')
+      if (z != null) { const n = Number(z); if (!Number.isNaN(n)) return Math.min(1.3, Math.max(0.7, n)) }
+    } catch {}
+    return 1
+  })
+  useEffect(() => {
+    try { localStorage.setItem('pg_table_zoom', String(tableZoom)) } catch {}
+  }, [tableZoom])
 const [showEmoji, setShowEmoji] = useState(false)
   const [longPress, setLongPress] = useState<{active:boolean; start:number}>({ active:false, start:0 })
   // Freeze the bet/raise button label right after submit to avoid flicker back to default
@@ -208,8 +218,9 @@ const [showEmoji, setShowEmoji] = useState(false)
           const tid = mine?.tableId || states[0]?.tableId
           const eqTimeline = (m.payload?.equityTimeline || {}) as Record<string, Array<{ community: number; eq: Record<string, number> }>>
           if (tid && eqTimeline[tid]?.length) equityTimelineRef.current = eqTimeline[tid]
+          else if (tid) equityTimelineRef.current = []
           if (tid && equityByTable[tid]) setEquity(equityByTable[tid])
-          else if (mine && !mine.allInLocked && mine.street !== 'showdown') setEquity(null)
+          else if (tid) setEquity(null)
         } catch {}
         // sound hooks + floating commentary
         if (mine) {
@@ -1117,11 +1128,28 @@ const [showEmoji, setShowEmoji] = useState(false)
   // (SeatItem defined in SeatItem.tsx with stable memo identity)
 
   return (
-      <div className={`${overlayCooldown ? 'overlay-cooldown' : ''} pg-game-in`} style={{ maxWidth: 1100, margin: '1.4rem auto' }} onContextMenu={(e)=>{
+      <div className={`${overlayCooldown ? 'overlay-cooldown' : ''} pg-game-in`} style={{ maxWidth: 1100, margin: '1.4rem auto', display: 'flex', position: 'relative' }} onContextMenu={(e)=>{
       const el = e.target as HTMLElement
       if (el && (el.closest('.emoji-btn') || el.closest('.emoji-panel') || el.closest('.allow-context'))) return
       e.preventDefault()
     }}>
+        {renderTables.length > 0 && (
+          <div className="table-zoom-wrap" aria-label="Zoom game view">
+            <div className="table-zoom-slider-box">
+              <input
+                type="range"
+                min={70}
+                max={130}
+                step={5}
+                value={Math.round(tableZoom * 100)}
+                onChange={(e) => setTableZoom(Math.round(Number(e.target.value)) / 100)}
+                className="table-zoom-slider"
+              />
+            </div>
+            <span className="table-zoom-label">{Math.round(tableZoom * 100)}%</span>
+          </div>
+        )}
+        <div className="table-zoom-content" style={{ transform: `scale(${tableZoom})`, transformOrigin: 'center top', flex: 1, minWidth: 0 }}>
       <h2>Table</h2>
       {level && (
         <p><b>Level {level.index + 1}:</b> {level.smallBlind}/{level.bigBlind} · {level.durationSec}s</p>
@@ -1155,6 +1183,40 @@ const [showEmoji, setShowEmoji] = useState(false)
           <h3>{t.tableId}</h3>
           <div className="felt-wrap">
             <div className={`felt ${riverPulse ? 'river-pulse' : ''} ${anyAllIn ? 'allin-mode' : ''}`} ref={feltRef}>
+              {/* Equity bar: vertical, top-right of felt */}
+              {equity && (anyAllIn || street === 'showdown') && (()=>{
+                const keys = Object.keys(equity)
+                if (keys.length !== 2) return null
+                const isPlaying = wallet && keys.includes(wallet)
+                const pAId = isPlaying ? wallet : keys[0]
+                const pBId = isPlaying ? keys.find(k => k !== wallet)! : keys[1]
+                const tl = equityTimelineRef.current
+                const visibleEq = (()=>{
+                  if (!tl.length) return equity
+                  const stage = revealedCount >= 5 ? 5 : revealedCount >= 4 ? 4 : revealedCount >= 3 ? 3 : 0
+                  const match = [...tl].reverse().find(t => t.community <= stage)
+                  return match ? match.eq : equity
+                })()
+                const eqA = visibleEq[pAId] ?? null
+                const eqB = visibleEq[pBId] ?? null
+                if (eqA === null && eqB === null) return null
+                const pctA = eqA ?? (eqB !== null ? 100 - eqB : 50)
+                const pctB = eqB ?? (eqA !== null ? 100 - eqA : 50)
+                const colorOf = (pct: number) => pct >= 65 ? '#22c55e' : pct >= 45 ? '#eab308' : '#ef4444'
+                return (
+                  <div className="equity-bar-felt">
+                    <div className="equity-bar-vertical-label">WIN %</div>
+                    <div className="equity-bar-vertical-track">
+                      <div className="equity-bar-segment equity-bar-villain" style={{ height: `${pctB}%`, background: colorOf(pctB) }} />
+                      <div className="equity-bar-segment equity-bar-hero" style={{ height: `${pctA}%`, background: colorOf(pctA) }} />
+                    </div>
+                    <div className="equity-bar-vertical-pcts">
+                      <span style={{ color: colorOf(pctB) }}>{pctB.toFixed(0)}</span>
+                      <span style={{ color: colorOf(pctA) }}>{pctA.toFixed(0)}</span>
+                    </div>
+                  </div>
+                )
+              })()}
               {/* deal-in animation layer */}
               {dealFx.length>0 && (
                 <div className="deal-fly" aria-hidden>
@@ -1343,44 +1405,6 @@ const [showEmoji, setShowEmoji] = useState(false)
             })}
               </div>
           </div>
-          {/* Equity bar for all-in situations */}
-          {equity && (anyAllIn || street === 'showdown') && (()=>{
-            const keys = Object.keys(equity)
-            if (keys.length !== 2) return null
-            const isPlaying = wallet && keys.includes(wallet)
-            const pAId = isPlaying ? wallet : keys[0]
-            const pBId = isPlaying ? keys.find(k => k !== wallet)! : keys[1]
-            const tl = equityTimelineRef.current
-            const visibleEq = (()=>{
-              if (!tl.length) return equity
-              const stage = revealedCount >= 5 ? 5 : revealedCount >= 4 ? 4 : revealedCount >= 3 ? 3 : 0
-              const match = [...tl].reverse().find(t => t.community <= stage)
-              return match ? match.eq : equity
-            })()
-            const eqA = visibleEq[pAId] ?? null
-            const eqB = visibleEq[pBId] ?? null
-            if (eqA === null && eqB === null) return null
-            const pctA = eqA ?? (eqB !== null ? 100 - eqB : 50)
-            const pctB = eqB ?? (eqA !== null ? 100 - eqA : 50)
-            const colorOf = (pct: number) => pct >= 65 ? '#22c55e' : pct >= 45 ? '#eab308' : '#ef4444'
-            return (
-              <div className="equity-bar-wrap">
-                <div className="equity-bar-label">
-                  <span style={{ color: colorOf(pctA), fontWeight: 800 }}>{pctA.toFixed(1)}%</span>
-                  <span style={{ fontSize: 10, color: '#94a3b8', letterSpacing: 1 }}>WINNING CHANCE</span>
-                  <span style={{ color: colorOf(pctB), fontWeight: 800 }}>{pctB.toFixed(1)}%</span>
-                </div>
-                <div className="equity-bar-track">
-                  <div className="equity-bar-hero" style={{ width: `${pctA}%`, background: colorOf(pctA) }} />
-                  <div className="equity-bar-villain" style={{ width: `${pctB}%`, background: colorOf(pctB) }} />
-                </div>
-                <div className="equity-bar-names">
-                  <span>{nameOf(pAId)}</span>
-                  <span>{nameOf(pBId)}</span>
-                </div>
-              </div>
-            )
-          })()}
           {toast && <div className="toast">{toast}</div>}
           {/* Toggle buttons first; panels open downward below */}
           <div className="table-panel-toggles">
@@ -1624,6 +1648,7 @@ const [showEmoji, setShowEmoji] = useState(false)
             )
           })()
         )}
+        </div>
     </div>
   )
 }
