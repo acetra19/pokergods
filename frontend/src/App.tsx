@@ -121,10 +121,10 @@ function App() {
   // CorePass login gate
   if (view === 'login' && !loggedIn) {
     return (
-      <div className="card theme-pokergods" style={{ maxWidth: 480, margin: '4rem auto', padding: '2rem' }}>
-        <div style={{ textAlign: 'center', marginBottom: 24 }}>
-          <div style={{ fontSize: 28, fontWeight: 900, letterSpacing: 0.5 }}>POKERGODS</div>
-          <div style={{ color: '#a5b4fc', fontSize: 14, marginTop: 4 }}>Sign in to play</div>
+      <div className="card theme-pokergods pg-login-gate">
+        <div style={{ textAlign: 'center', marginBottom: 20 }}>
+          <div style={{ fontSize: 13, fontWeight: 1000, letterSpacing: 2, color: '#8b5cf6', textTransform: 'uppercase' }}>POKERGODS</div>
+          <div style={{ fontSize: 22, fontWeight: 800, color: '#fff', marginTop: 6 }}>Sign in to play</div>
         </div>
         <AuthPanel onLogin={({ wallet: w }) => { handleCorepassLogin(w); go('hub') }} />
       </div>
@@ -138,17 +138,22 @@ function App() {
   }
 
   return (
-    <div className="card theme-pokergods" style={{ maxWidth: 1000, margin: '2rem auto' }}>
+    <div className="card theme-pokergods pg-app-shell">
       {/* Header */}
-      <div className="brand-header" style={{ cursor: 'pointer' }} onClick={() => go('hub')}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-          <div className="brand-title">POKERGODS</div>
-          <div className="brand-sub">Heads-Up Poker on Core</div>
+      <div className="pg-header" onClick={() => go('hub')}>
+        <div className="pg-header-left">
+          <span className="pg-logo">PG</span>
+          <span className="pg-header-wallet" title={wallet}>{wallet.slice(0, 6)}...{wallet.slice(-4)}</span>
         </div>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 12, color: '#a5b4fc' }}>
-          <span title={wallet}>{wallet.slice(0, 8)}...{wallet.slice(-4)}</span>
+        <div className="pg-header-right">
           <button
-            style={{ fontSize: 11, padding: '2px 8px', borderRadius: 6, background: 'rgba(255,255,255,0.08)', border: '1px solid rgba(139,92,246,0.2)', color: '#c7d2fe' }}
+            className="mute-toggle"
+            onClick={(e) => { e.stopPropagation(); setMuted(!isMuted()) }}
+          >
+            {isMuted() ? '🔇' : '🔊'}
+          </button>
+          <button
+            className="pg-logout"
             onClick={(e) => {
               e.stopPropagation()
               setLoggedIn(false); setWallet('')
@@ -161,48 +166,15 @@ function App() {
         </div>
       </div>
 
-      {/* Navigation */}
-      <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap', marginBottom: 16 }}>
-        <button className={view === 'hub' ? 'btn-active' : ''} onClick={() => go('hub')}>
-          Play
-        </button>
-        <button className={view === 'cashgames' ? 'btn-active' : ''} onClick={() => go('cashgames')}>
-          Tables
-        </button>
-        <button className={view === 'profile' ? 'btn-active' : ''} onClick={() => go('profile')}>
-          Profile
-        </button>
-        <button className={view === 'tokenomics' ? 'btn-active' : ''} onClick={() => go('tokenomics')}>
-          Tokenomics
-        </button>
-        <button className={view === 'elo' ? 'btn-active' : ''} onClick={() => go('elo')}>
-          ELO
-        </button>
-        <button className={view === 'docs' ? 'btn-active' : ''} onClick={() => go('docs')}>
-          Docs
-        </button>
-        <div style={{ marginLeft: 'auto', display: 'flex', gap: 8, alignItems: 'center' }}>
-          <button
-            className="mute-toggle"
-            onClick={() => setMuted(!isMuted())}
-            title={isMuted() ? 'Unmute' : 'Mute'}
-          >
-            {isMuted() ? '🔇' : '🔊'}
-          </button>
-          <select
-            value={profile}
-            onChange={(e) => {
-              const v = (e.target.value === 'classic' ? 'classic' : 'subtle') as 'subtle' | 'classic'
-              setProfile(v)
-              setSoundProfile(v)
-            }}
-            style={{ padding: '4px 8px', borderRadius: 4, background: 'rgba(255,255,255,0.1)', color: '#fff', border: 'none' }}
-          >
-            <option value="subtle">Subtle</option>
-            <option value="classic">Classic</option>
-          </select>
-        </div>
-      </div>
+      {/* Bottom tab bar on mobile, horizontal nav on desktop */}
+      <nav className="pg-nav">
+        <button className={view === 'hub' ? 'active' : ''} onClick={() => go('hub')}>Play</button>
+        <button className={view === 'cashgames' ? 'active' : ''} onClick={() => go('cashgames')}>Tables</button>
+        <button className={view === 'profile' ? 'active' : ''} onClick={() => go('profile')}>Profile</button>
+        <button className={view === 'elo' ? 'active' : ''} onClick={() => go('elo')}>Rankings</button>
+      </nav>
+
+      <div className="pg-content">
 
       {/* Views */}
       {view === 'hub' ? (
@@ -266,12 +238,13 @@ function App() {
         </div>
       )}
 
+      </div>{/* end pg-content */}
+
       {/* Admin FAB */}
       {loggedIn && (
         <button
           className="admin-fab"
           onClick={() => go('admin')}
-          style={{ position: 'fixed', bottom: 20, right: 20 }}
         >
           Admin
         </button>
