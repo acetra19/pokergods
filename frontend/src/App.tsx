@@ -175,31 +175,17 @@ function App() {
 
       {/* Views */}
       {view === 'hub' ? (
-        <div>
-          <div style={{ textAlign: 'center', marginBottom: 24 }}>
-            <h2 style={{ margin: '0 0 0.5rem', color: '#c7d2fe' }}>Ready to play?</h2>
-            <p style={{ opacity: 0.7, margin: 0 }}>Choose your mode below</p>
-          </div>
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))', gap: 16, marginBottom: 24 }}>
-            <div
-              style={{ background: 'rgba(107,127,255,0.08)', border: '1px solid rgba(139,92,246,0.25)', borderRadius: 14, padding: 20, cursor: 'pointer', textAlign: 'center', transition: 'transform 120ms' }}
-              onClick={() => go('hu')}
-              onMouseEnter={e => (e.currentTarget.style.transform = 'translateY(-2px)')}
-              onMouseLeave={e => (e.currentTarget.style.transform = '')}
-            >
-              <div style={{ fontSize: 36, marginBottom: 8 }}>1v1</div>
-              <div style={{ fontWeight: 800, fontSize: 18, marginBottom: 6, color: '#c7d2fe' }}>Heads-Up Match</div>
-              <div style={{ fontSize: 13, opacity: 0.7 }}>Play against another human in a ranked heads-up match.</div>
+        <div className="pg-hub">
+          <div className="pg-hub-cards">
+            <div className="pg-hub-card" onClick={() => go('hu')}>
+              <div className="pg-hub-card-icon">1v1</div>
+              <div className="pg-hub-card-title">Heads-Up Match</div>
+              <div className="pg-hub-card-desc">Ranked match against another player.</div>
             </div>
-            <div
-              style={{ background: 'rgba(107,127,255,0.08)', border: '1px solid rgba(139,92,246,0.25)', borderRadius: 14, padding: 20, cursor: 'pointer', textAlign: 'center', transition: 'transform 120ms' }}
-              onClick={() => go('cashgames')}
-              onMouseEnter={e => (e.currentTarget.style.transform = 'translateY(-2px)')}
-              onMouseLeave={e => (e.currentTarget.style.transform = '')}
-            >
-              <div style={{ fontSize: 36, marginBottom: 8 }}>🃏</div>
-              <div style={{ fontWeight: 800, fontSize: 18, marginBottom: 6, color: '#c7d2fe' }}>Cash Tables</div>
-              <div style={{ fontSize: 13, opacity: 0.7 }}>Join or spectate open tables with varying stakes.</div>
+            <div className="pg-hub-card" onClick={() => go('cashgames')}>
+              <div className="pg-hub-card-icon">🃏</div>
+              <div className="pg-hub-card-title">Cash Tables</div>
+              <div className="pg-hub-card-desc">Join or spectate open tables.</div>
             </div>
           </div>
         </div>
