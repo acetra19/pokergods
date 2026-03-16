@@ -685,9 +685,9 @@ const broadcastHandStates = () => {
     const inHand = st.players.filter((p: any) => p.inHand && !p.busted);
     const bothAllIn = inHand.length === 2 && inHand.every((p: any) => p.allIn);
     const atShowdown = st.street === 'showdown';
-    // Only send equity when runout in progress (both all-in) or showdown — not when one is all-in waiting for the other to act
+    // Only send equity when runout in progress (both all-in) or showdown with two players still in hand — not on fold (one in hand)
     if (!atShowdown && !bothAllIn) continue;
-    const withHole = st.players.filter((p: any) => p.hole && p.hole.length >= 2);
+    const withHole = st.players.filter((p: any) => p.inHand && p.hole && p.hole.length >= 2);
     if (withHole.length !== 2) continue;
     const a = withHole[0]!;
     const b = withHole[1]!;
