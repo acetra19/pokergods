@@ -37,7 +37,7 @@ export function connectWS(
         try { onStatus && onStatus('open', 0); } catch {}
         try {
           const w = sessionStorage.getItem('pg_wallet')
-          if (w) ws.send(JSON.stringify({ type:'identify', wallet: w }))
+          if (w && ws) ws.send(JSON.stringify({ type:'identify', wallet: w }))
         } catch {}
       };
       try { (window as any).pg_ws_send = (payload: any) => { try { ws && ws.readyState === ws.OPEN && ws.send(JSON.stringify(payload)) } catch {} } } catch {}
