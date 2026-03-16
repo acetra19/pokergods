@@ -1471,7 +1471,7 @@ const [showEmoji, setShowEmoji] = useState(false)
                 displayChipsRef={displayChipsRef}
                 inRevealUIRef={inRevealUIRef}
                 committedRef={committedRef}
-                foldAnimation={seat.playerId === villainFoldPlayerId}
+                foldAnimation={s.playerId === villainFoldPlayerId}
               />
             )
             })}

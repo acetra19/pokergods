@@ -49,7 +49,7 @@ export default function HULobby({ wallet, onMatch }: { wallet: string; onMatch: 
     return () => { ws.close(); clearInterval(id) }
   }, [wallet, onMatch])
 
-  const [tick, setTick] = useState(0)
+  const [, setTick] = useState(0)
   useEffect(() => {
     if (lockUntilMs == null || Date.now() >= lockUntilMs) return
     const id = setInterval(() => setTick((t) => t + 1), 1000)
