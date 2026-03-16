@@ -1298,7 +1298,7 @@ const [showEmoji, setShowEmoji] = useState(false)
             return `Raise to ${minTo}`
           }
           return (
-              <div className="action-panel actor-anim" data-animkey={actorAnimKey} style={{ marginTop: 84, marginBottom: 24 }}>
+              <div className="action-panel actor-anim" data-animkey={actorAnimKey} style={{ marginTop: 120, marginBottom: 24 }}>
               {imAllIn ? (
             <>
               <div className="action-info info" style={{ justifyContent:'center', marginLeft:-6 }}><span className="spinner" />You're All‑In! Waiting for opponent…</div>
@@ -1389,7 +1389,7 @@ const [showEmoji, setShowEmoji] = useState(false)
         })()}
         
         {!actionState && (
-          <div className="action-panel actor-anim" data-animkey={actorAnimKey} style={{ marginTop: 84, marginBottom: 24 }}>
+          <div className="action-panel actor-anim" data-animkey={actorAnimKey} style={{ marginTop: 120, marginBottom: 24 }}>
             <div className="action-info info" style={{ justifyContent:'center' }}><span className="spinner" />{inRevealUI ? 'All‑In in progress…' : 'Waiting…'}</div>
             {inRevealUI && (
               <div className="allin-fill" aria-hidden>

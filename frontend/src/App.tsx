@@ -1,11 +1,12 @@
 import { useEffect, useState, useCallback } from 'react'
 import './App.css'
-import { getLobby, connectWS, corepassCallback, corepassPollSession } from './api'
+import { getLobby, connectWS, corepassCallback, corepassPollSession, getProfile } from './api'
 import { isMuted, setMuted, hookAutoResume, setSoundDebug } from './utils/sound'
 import TableView from './components/Table'
 import MatchSummary from './components/MatchSummary'
 import AuthPanel from './components/AuthPanel'
 import ProfilePanel from './components/ProfilePanel'
+import ProfileSetup from './components/ProfileSetup'
 import Tokenomics from './components/Tokenomics'
 import Disclaimer from './components/Disclaimer'
 import Terms from './components/Terms'
@@ -16,12 +17,13 @@ import AdminPanel from './components/AdminPanel'
 import CashGamesLobby from './components/CashGamesLobby'
 import Landing from './components/Landing'
 
-type View = 'landing' | 'login' | 'hub' | 'hu' | 'table' | 'cashgames' | 'profile' |
+type View = 'landing' | 'login' | 'setup' | 'hub' | 'hu' | 'table' | 'cashgames' | 'profile' |
             'admin' | 'tokenomics' | 'elo' | 'docs' | 'terms' | 'privacy' | 'summary'
 
 function App() {
   const [lobby, setLobby] = useState<any | null>(null)
   const [wallet, setWallet] = useState<string>('')
+  const [displayName, setDisplayName] = useState<string>('')
   const [loggedIn, setLoggedIn] = useState<boolean>(false)
   const [view, setView] = useState<View>('landing')
   const [tableId, setTableId] = useState<string | null>(null)
@@ -43,6 +45,19 @@ function App() {
     try { sessionStorage.setItem('pg_wallet', address) } catch {}
   }, [])
 
+  const checkProfileAndGo = useCallback(async (address: string) => {
+    try {
+      const res = await getProfile(address)
+      const p = res?.profile
+      if (p && p.username && p.username !== address && p.username.trim().length >= 2) {
+        setDisplayName(p.username)
+        try { window.location.hash = '/hub' } catch { setView('hub') }
+        return
+      }
+    } catch {}
+    setView('setup')
+  }, [])
+
   useEffect(() => {
     const params = new URLSearchParams(window.location.search)
     const signature = params.get('signature')
@@ -56,13 +71,12 @@ function App() {
 
     corepassCallback({ signature, session, coreID })
       .then(() => corepassPollSession(session))
-      .then(() => { handleCorepassLogin(coreID); setView('hub') })
+      .then(() => { handleCorepassLogin(coreID); checkProfileAndGo(coreID) })
       .catch(() => {
-        // Fallback: even if callback fails, at least mark as logged in for UX
         handleCorepassLogin(coreID)
-        setView('hub')
+        checkProfileAndGo(coreID)
       })
-  }, [handleCorepassLogin])
+  }, [handleCorepassLogin, checkProfileAndGo])
 
   useEffect(() => {
     try {
@@ -74,12 +88,27 @@ function App() {
     } catch {}
   }, [])
 
+  const [profileChecked, setProfileChecked] = useState(false)
+  useEffect(() => {
+    if (!loggedIn || !wallet || profileChecked) return
+    setProfileChecked(true)
+    getProfile(wallet).then((res: any) => {
+      const p = res?.profile
+      if (p && p.username && p.username !== wallet && p.username.trim().length >= 2) {
+        setDisplayName(p.username)
+      } else {
+        setView('setup')
+      }
+    }).catch(() => {})
+  }, [loggedIn, wallet, profileChecked])
+
   useEffect(() => {
     const applyRoute = () => {
       const raw = (window.location.hash || '').replace(/^#\/?/, '')
       const [h, qs] = raw.split('?')
       switch (h) {
         case 'login': setView('login'); break
+        case 'setup': setView('setup'); break
         case 'hub': setView('hub'); break
         case 'hu': setView('hu'); break
         case 'table': {
@@ -128,8 +157,20 @@ function App() {
           <div style={{ fontSize: 13, fontWeight: 1000, letterSpacing: 2, color: '#8b5cf6', textTransform: 'uppercase' }}>POKERGODS</div>
           <div style={{ fontSize: 22, fontWeight: 800, color: '#fff', marginTop: 6 }}>Sign in to play</div>
         </div>
-        <AuthPanel onLogin={({ wallet: w }) => { handleCorepassLogin(w); go('hub') }} />
+        <AuthPanel onLogin={({ wallet: w }) => { handleCorepassLogin(w); checkProfileAndGo(w) }} />
       </div>
+    )
+  }
+
+  if (view === 'setup' && loggedIn) {
+    return (
+      <ProfileSetup wallet={wallet} onComplete={() => {
+        getProfile(wallet).then((res: any) => {
+          const p = res?.profile
+          if (p?.username) setDisplayName(p.username)
+        }).catch(() => {})
+        go('hub')
+      }} />
     )
   }
 
@@ -145,7 +186,7 @@ function App() {
       <div className="pg-header" onClick={() => go('hub')}>
         <div className="pg-header-left">
           <span className="pg-logo">PG</span>
-          <span className="pg-header-wallet" title={wallet}>{wallet.slice(0, 6)}...{wallet.slice(-4)}</span>
+          <span className="pg-header-wallet" title={wallet}>{displayName || `${wallet.slice(0, 6)}...${wallet.slice(-4)}`}</span>
         </div>
         <div className="pg-header-right">
           <button
@@ -158,7 +199,7 @@ function App() {
             className="pg-logout"
             onClick={(e) => {
               e.stopPropagation()
-              setLoggedIn(false); setWallet('')
+              setLoggedIn(false); setWallet(''); setDisplayName(''); setProfileChecked(false)
               try { sessionStorage.removeItem('pg_wallet') } catch {}
               go('landing')
             }}

@@ -807,7 +807,7 @@ h3 { margin: 8px 0 10px; }
   .landing { padding: 24px; }
 }
 
-.action-panel { min-height: 164px; justify-content: flex-start; width: 640px; max-width: 640px; margin: 0 auto; }
+.action-panel { min-height: 164px; justify-content: flex-start; width: 640px; max-width: 640px; margin: 24px auto 0; }
 .action-panel .action-info,
 .action-panel .action-row,
 .waiting-block .action-info,
@@ -1125,4 +1125,51 @@ button:focus-visible { outline: 2px solid #8b5cf6; outline-offset: 2px; }
   .action-row button { min-height: 48px; font-size: 14px !important; padding: 10px 14px !important; border-radius: 12px !important; }
   .stage-bar { padding: 4px 10px; gap: 8px; flex-wrap: wrap; }
   .pg-game-in { margin: 0 !important; padding: 0 !important; }
+}
+
+/* ── Profile Setup Screen ── */
+.pg-setup-avatar-wrap { display: flex; flex-direction: column; align-items: center; margin-bottom: 16px; }
+.pg-setup-avatar {
+  width: 96px; height: 96px; border-radius: 50%; background: rgba(139,92,246,0.15);
+  display: flex; align-items: center; justify-content: center; position: relative;
+  cursor: pointer; overflow: hidden; border: 3px solid rgba(139,92,246,0.3);
+  transition: border-color 0.2s;
+}
+.pg-setup-avatar:hover { border-color: #8b5cf6; }
+.pg-setup-avatar img { width: 100%; height: 100%; object-fit: cover; }
+.pg-setup-avatar-placeholder { font-size: 36px; }
+.pg-setup-avatar-badge {
+  position: absolute; bottom: 0; right: 0; width: 28px; height: 28px;
+  border-radius: 50%; background: #8b5cf6; display: flex; align-items: center;
+  justify-content: center; font-size: 13px; border: 2px solid #0e0a20;
+}
+.pg-setup-emoji-row {
+  display: flex; flex-wrap: wrap; gap: 8px; justify-content: center; margin-bottom: 20px;
+}
+.pg-setup-emoji {
+  width: 40px; height: 40px; border-radius: 10px; font-size: 20px;
+  background: rgba(139,92,246,0.1); border: 1px solid rgba(139,92,246,0.2);
+  cursor: pointer; display: flex; align-items: center; justify-content: center;
+  transition: background 0.15s, transform 0.1s;
+}
+.pg-setup-emoji:hover { background: rgba(139,92,246,0.25); transform: scale(1.1); }
+.pg-setup-field { display: flex; flex-direction: column; gap: 6px; margin-bottom: 20px; }
+.pg-setup-field label { font-size: 13px; color: #94a3b8; font-weight: 600; }
+.pg-setup-field input {
+  padding: 12px 14px; border-radius: 12px; font-size: 16px; font-weight: 600;
+  background: rgba(15,10,32,0.6); border: 1px solid rgba(139,92,246,0.25);
+  color: #e0e7ff; outline: none; transition: border-color 0.2s;
+}
+.pg-setup-field input:focus { border-color: #8b5cf6; }
+.pg-setup-error { color: #f87171; font-size: 13px; margin-bottom: 12px; text-align: center; }
+.pg-setup-continue {
+  display: block; width: 100%; padding: 14px; border-radius: 14px; font-size: 16px; font-weight: 800;
+  background: linear-gradient(135deg, #8b5cf6, #6d28d9); color: #fff; border: none;
+  cursor: pointer; transition: transform 0.1s, opacity 0.2s; margin-bottom: 10px;
+}
+.pg-setup-continue:active { transform: scale(0.97); }
+.pg-setup-continue:disabled { opacity: 0.5; cursor: not-allowed; }
+.pg-setup-skip {
+  display: block; width: 100%; padding: 10px; border-radius: 12px; font-size: 13px;
+  background: none; border: none; color: #64748b; cursor: pointer; text-decoration: underline;
 }
