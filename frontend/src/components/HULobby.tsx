@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { connectWS, huStatus, huJoin, huLeave, huLeaderboard, huElo, getProfile } from '../api'
+import { connectWS, huStatus, huJoin, huLeave, huBotJoin, huBotStatus, huLeaderboard, huElo, getProfile } from '../api'
 
 export default function HULobby({ wallet, onMatch }: { wallet: string; onMatch: (tableId: string) => void }) {
   const [queueSize, setQueueSize] = useState(0)
@@ -159,6 +159,28 @@ export default function HULobby({ wallet, onMatch }: { wallet: string; onMatch: 
             })}
           </div>
         )}
+      </div>
+
+      {/* Play vs Bot */}
+      <div style={{
+        marginTop: 16, padding: 16, borderRadius: 14, textAlign: 'center',
+        background: 'rgba(107,127,255,0.04)', border: '1px solid rgba(139,92,246,0.12)',
+      }}>
+        <div style={{ fontSize: 13, color: '#6b7280', marginBottom: 8 }}>No one around? Practice against a bot.</div>
+        <button
+          className="btn"
+          style={{ padding: '10px 28px', fontSize: 14, fontWeight: 700 }}
+          onClick={async () => {
+            try {
+              await huBotJoin(wallet)
+              setHint('Bot match starting...')
+              const s: any = await huBotStatus(wallet)
+              if (s?.matchTableId) onMatch(s.matchTableId)
+            } catch { setHint('Bot join failed. Please retry.') }
+          }}
+        >
+          Play vs Bot
+        </button>
       </div>
     </div>
   )
