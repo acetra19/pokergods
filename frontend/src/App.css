@@ -70,16 +70,17 @@
   .pg-app-shell { padding: 0 16px; }
 }
 
-/* Admin FAB */
+/* Admin FAB — hidden on mobile */
 .admin-fab {
   position: fixed !important; right: 16px !important;
-  bottom: 70px !important; z-index: 9999;
+  bottom: 16px !important; z-index: 9999;
   padding: 6px 12px !important; border-radius: 999px !important; font-size: 11px !important;
   background: rgba(99,102,241,0.15) !important; color: #a5b4fc !important;
   border: 1px solid rgba(99,102,241,0.2) !important;
+  display: none !important;
 }
 @media (min-width: 768px) {
-  .admin-fab { bottom: 16px !important; }
+  .admin-fab { display: block !important; }
 }
 
 /* Active nav button */
