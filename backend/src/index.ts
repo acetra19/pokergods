@@ -1228,6 +1228,16 @@ app.get('/admin/users', adminAuth, (_req, res) => {
   res.json({ ok:true, users: list });
 });
 
+// Admin: list all registered profiles (coreID, displayName, avatar)
+app.get('/admin/profiles', adminAuth, (_req, res) => {
+  const list: Array<{ coreId: string; displayName: string; avatarUrl: string }> = [];
+  profiles.forEach((p, wallet) => {
+    list.push({ coreId: wallet, displayName: p.username || wallet, avatarUrl: p.avatarUrl || '' });
+  });
+  list.sort((a, b) => a.displayName.localeCompare(b.displayName));
+  res.json({ ok: true, profiles: list });
+});
+
 // Admin: reset HU session leaderboard (wins/matches to 0)
 app.post('/admin/hu/resetSession', adminAuth, (_req, res) => {
   try {

@@ -186,6 +186,12 @@ export async function adminResetSession(token: string) {
   try { return JSON.parse(txt) } catch { return { ok:true } }
 }
 
+export async function adminListProfiles(token: string) {
+  const res = await fetch(`${BACKEND}/admin/profiles`, { headers: authHeaders(token) })
+  if (!res.ok) throw new Error('failed to load profiles')
+  return res.json()
+}
+
 // Heads-up API
 export async function huStatus(wallet?: string) {
   const url = wallet ? `${BACKEND}/hu/status/${wallet}` : `${BACKEND}/hu/status`
