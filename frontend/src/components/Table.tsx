@@ -429,13 +429,17 @@ const [showEmoji, setShowEmoji] = useState(false)
               label = `${nm} folds`; floatStyle = 'action-fold'
               setVillainFoldPlayerId(p.playerId)
               if (audioAllowedRef.current) playSoundCore('fold', () => { resumeAudio(); playFold() })
-              setTimeout(() => setVillainFoldPlayerId(null), 700)
+              setTimeout(() => setVillainFoldPlayerId(null), 800)
             }
             else if (act === 'bet') { label = `${nm} bets ${amt ?? ''}`; floatStyle = 'action-bet' }
             else if (act === 'raise') { label = `${nm} raises to ${amt ?? ''}`; floatStyle = 'action-raise' }
             else { label = `${nm} ${act}` }
             if (isAllIn && act !== 'fold') { label = `${nm} ALL-IN!`; floatStyle = 'action-allin' }
-            addFloat(label, 30 + Math.random() * 30, 14 + Math.random() * 10, undefined, floatStyle)
+            if (floatStyle === 'action-fold') {
+              addFloat(label, 42, 26, 20, floatStyle)
+            } else {
+              addFloat(label, 30 + Math.random() * 30, 14 + Math.random() * 10, undefined, floatStyle)
+            }
           }
         } catch {}
       }
@@ -794,11 +798,9 @@ const [showEmoji, setShowEmoji] = useState(false)
         if (chips) { chips.classList.remove('flash-once'); void chips.offsetWidth; chips.classList.add('flash-once') }
       } catch {}
       // Only play shuffle once per MATCH start (table change) and only when this client is actually seated
-      let wasNewMatch = false
       try {
         const render = renderTables[0]
         const amSeated = !!(render && Array.isArray((render as any).seats) && (render as any).seats.some((p:any)=> p?.playerId === wallet))
-        wasNewMatch = newMatchRef.current
         if (amSeated && newMatchRef.current && !didMatchShuffleRef.current) {
           didMatchShuffleRef.current = true
           resumeAudio(); playShuffle()
@@ -829,15 +831,7 @@ const [showEmoji, setShowEmoji] = useState(false)
           setTimeout(() => setDealFx([]), 460)
         }
       } catch {}
-      // Center table in viewport only at match start (not every new hand – avoids clunky jump if user scrolled)
-      try {
-        if (wasNewMatch) {
-          const el = feltRef.current
-          if (el && typeof el.scrollIntoView === 'function') {
-            setTimeout(() => el.scrollIntoView({ behavior: 'smooth', block: 'center', inline: 'center' }), 60)
-          }
-        }
-      } catch {}
+      // No scrollIntoView here – it caused jerky recentering after every hand; user keeps their scroll position
       // minimal, robust fade-in for hole cards (opacity only)
       try {
         const seats = Array.from(document.querySelectorAll('.seat .hole-wrap')) as HTMLElement[]

@@ -147,7 +147,10 @@ function SeatItemInner({
   })()
 
   return (
-    <div className={`seat ${isActor ? 'actor actor-pulse' : ''} ${bloomActive ? 'seat-bloom' : ''}`} style={seatStyle}>
+    <div className={`seat ${isActor ? 'actor actor-pulse' : ''} ${bloomActive ? 'seat-bloom' : ''} ${foldAnimation ? 'fold-badge' : ''}`} style={seatStyle}>
+      {foldAnimation && (
+        <div className="fold-badge-pill" style={{ position: 'absolute', left: '50%', top: '50%', transform: 'translate(-50%, -50%)', zIndex: 10, padding: '6px 14px', borderRadius: 8, background: 'rgba(220,38,38,0.92)', color: '#fff', fontWeight: 800, fontSize: 13, letterSpacing: '0.08em', boxShadow: '0 2px 12px rgba(0,0,0,0.4)', pointerEvents: 'none' }} aria-hidden>FOLD</div>
+      )}
       {player?.allIn && (<div className="allin-badge" title="Player is all-in">ALL-IN</div>)}
       {street === 'preflop' && isSB && (<div className="blind-badge sb" title="Small Blind">SB</div>)}
       {street === 'preflop' && isBB && (<div className="blind-badge bb" title="Big Blind">BB</div>)}
