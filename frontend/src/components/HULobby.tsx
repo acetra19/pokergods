@@ -133,7 +133,7 @@ export default function HULobby({ wallet, onMatch }: { wallet: string; onMatch: 
           <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
             {leaders.slice(0, 10).map((r: any, i: number) => {
               const name = r.displayName || r.playerId
-              const rating = eloMap[name] ?? 1500
+              const rating = r.elo ?? eloMap[name] ?? 1500
               const tier = rating >= 2200 ? 'POKERGOD' : rating >= 2000 ? 'Diamond' : rating >= 1800 ? 'Gold' : rating >= 1600 ? 'Silver' : 'Bronze'
               const matches = (r.matches ?? r.hands) ?? 0
               const wins = Number(r.wins || 0)
@@ -151,6 +151,7 @@ export default function HULobby({ wallet, onMatch }: { wallet: string; onMatch: 
                 >
                   <span style={{ width: 32, fontWeight: 800, color: i < 3 ? '#8b5cf6' : '#6b7280', fontSize: 13 }}>{medal}</span>
                   <span style={{ flex: 1, fontWeight: 700, color: '#e0e7ff' }}>{name}</span>
+                  <span style={{ fontSize: 12, fontWeight: 700, color: '#a5b4fc', minWidth: 40, textAlign: 'right' }}>{rating}</span>
                   <span style={{ fontSize: 11, padding: '2px 6px', borderRadius: 999, background: '#1e1b4b', color: '#a5b4fc' }}>{tier}</span>
                   <span style={{ fontSize: 12, color: '#6b7fff', minWidth: 40, textAlign: 'right' }}>{wins}W</span>
                   <span style={{ fontSize: 12, opacity: 0.5, minWidth: 35, textAlign: 'right' }}>{wr}%</span>

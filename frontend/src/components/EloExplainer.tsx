@@ -6,6 +6,7 @@ type LeaderRow = {
   displayName: string
   wins: number
   matches: number
+  elo: number
 }
 
 export default function EloExplainer() {
@@ -59,6 +60,7 @@ export default function EloExplainer() {
               <tr>
                 <th>#</th>
                 <th>Player</th>
+                <th>ELO</th>
                 <th>Wins</th>
                 <th>Matches</th>
                 <th>Winrate</th>
@@ -74,6 +76,7 @@ export default function EloExplainer() {
                   <tr key={r.playerId}>
                     <td>{medal}</td>
                     <td>{r.displayName || r.playerId.slice(0, 10)}</td>
+                    <td style={{ fontWeight: 700, color: '#a5b4fc' }}>{r.elo ?? 1500}</td>
                     <td>{r.wins}</td>
                     <td>{r.matches}</td>
                     <td>{winrate}%</td>
