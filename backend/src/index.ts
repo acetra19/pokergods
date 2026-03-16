@@ -59,7 +59,7 @@ app.post('/diag/log', express.json(), (req, res)=> { diag(String(req.body?.tag||
 
 // --- Admin auth (JWT‑style HMAC token; beta, no external deps) ---
 const ADMIN_USER = process.env.ADMIN_USER || 'admin';
-const ADMIN_PASS = process.env.ADMIN_PASS || 'pokergod69';
+const ADMIN_PASS = process.env.ADMIN_PASS || '';
 const ADMIN_JWT_SECRET = (() => {
   const existing = process.env.ADMIN_JWT_SECRET || (global as any).__pg_admin_jwt;
   if (existing) return existing;

@@ -1,9 +1,9 @@
 node_modules/
-/node_modules/
-/dist/
-.log
-.err.log
-.out.log
+**/node_modules/
+**/dist/
+*.log
+*.err.log
+*.out.log
 .env
 backend/.env
 frontend/.env
@@ -16,3 +16,16 @@ backend/data/bots.json
 backend/data/cash_tables.json
 backend/data/arena_stats.json
 backend/data/tournaments.json
+
+# Runtime data (users/profiles)
+backend/data/users.json
+backend/data/profiles.json
+backend/data/hu.json
+
+# Playwright
+frontend/test-results/
+frontend/playwright-report/
+
+# IDE
+.vscode/
+.idea/
