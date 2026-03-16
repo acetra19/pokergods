@@ -4,18 +4,21 @@ import pgCover from '../images/pokergodscover.png'
 import type { TableState, BlindLevel } from '../types'
 import { getSeating, handState, handActionState, handAction, connectWS, getProfile, diagLog } from '../api'
 import { formatCardLabel } from '../utils/cards'
-import { playChip, playDeal, playWin, resumeAudio, playWarnTick, playBankStart, playCheck, playLose, playOverlayCue, playShuffle, playClick } from '../utils/sound'
+import { playChip, playDeal, playFlop, playTurn, playRiver, playWin, resumeAudio, playWarnTick, playBankStart, playCheck, playLose, playOverlayCue, playShuffle, playClick } from '../utils/sound'
 import { SeatItem } from './SeatItem'
 
 const SOUND_COOLDOWN_MS: Record<string, number> = {
   chip: 180,
   deal: 120,
+  flop: 200,
+  turn: 200,
+  river: 200,
   win: 400,
   warn: 600,
   bank: 600,
   check: 200,
   overlayCue: 300,
-    click: 120,
+  click: 120,
 }
 
 const soundLastPlayed: Record<string, number> = {}
@@ -240,15 +243,15 @@ const [showEmoji, setShowEmoji] = useState(false)
                 addFloat('Deal', 38, 28)
               }
               if (st.street === 'flop' && st.community?.length === 3) {
-                if (audioAllowedRef.current) playSoundCore('deal', () => playDeal())
+                if (audioAllowedRef.current) playSoundCore('flop', () => playFlop())
                 addFloat('Flop', 38, 28)
               }
               if (st.street === 'turn' && st.community?.length === 4) {
-                if (audioAllowedRef.current) playSoundCore('deal', () => playDeal())
+                if (audioAllowedRef.current) playSoundCore('turn', () => playTurn())
                 addFloat('Turn', 38, 28)
               }
               if (st.street === 'river' && st.community?.length === 5) {
-                if (audioAllowedRef.current) playSoundCore('deal', () => playDeal())
+                if (audioAllowedRef.current) playSoundCore('river', () => playRiver())
                 addFloat('River', 38, 28)
                 const stamp = Date.now()
                 setRiverPulse(stamp)

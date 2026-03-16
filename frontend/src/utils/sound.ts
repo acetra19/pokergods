@@ -62,12 +62,44 @@ export function playChip() {
 }
 
 export function playDeal() {
-  // kurzer, weicher Impuls
   if (debug) console.debug('[sound] playDeal', { profile });
   if (profile === 'subtle') {
     beep(380, 22, 'sine', 0.015);
   } else {
     beep(480, 26, 'triangle', 0.018);
+  }
+}
+
+export function playFlop() {
+  if (debug) console.debug('[sound] playFlop', { profile });
+  if (profile === 'subtle') {
+    beep(320, 28, 'sine', 0.013);
+    setTimeout(() => beep(360, 24, 'sine', 0.012), 60);
+    setTimeout(() => beep(400, 22, 'sine', 0.011), 120);
+  } else {
+    beep(340, 32, 'triangle', 0.016);
+    setTimeout(() => beep(380, 28, 'triangle', 0.015), 65);
+    setTimeout(() => beep(420, 26, 'triangle', 0.014), 130);
+  }
+}
+
+export function playTurn() {
+  if (debug) console.debug('[sound] playTurn', { profile });
+  if (profile === 'subtle') {
+    beep(440, 30, 'sine', 0.014);
+  } else {
+    beep(460, 34, 'triangle', 0.017);
+  }
+}
+
+export function playRiver() {
+  if (debug) console.debug('[sound] playRiver', { profile });
+  if (profile === 'subtle') {
+    beep(500, 35, 'sine', 0.015);
+    setTimeout(() => beep(560, 30, 'sine', 0.013), 80);
+  } else {
+    beep(520, 40, 'triangle', 0.018);
+    setTimeout(() => beep(580, 34, 'triangle', 0.016), 85);
   }
 }
 
