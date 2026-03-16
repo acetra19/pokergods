@@ -27,7 +27,7 @@ export class GameEngine {
   private actorDeadlineMs = 0;
   private actorTimebankMsByPlayer: Record<string, number> = {}; // per-player timebank
   private runoutNextAtMs: number = 0; // schedule staged runout timings
-  private readonly runoutStepMs: number = 800;
+  private readonly runoutStepMs: number = 1200;
   private liveBetThisStreet: boolean = false; // track whether a live bet/raise occurred
   // timing configuration (overridable via env)
   private primaryDecisionMs: number = Number(process.env.GE_PRIMARY_MS ?? 20_000);
@@ -224,12 +224,6 @@ export class GameEngine {
     // dealer (button) will be last to act to close an unchecked street
     this.lastToActSeatIndex = this.dealerIndex;
     this.actorDeadlineMs = Date.now() + this.primaryDecisionMs;
-    // If any player is all-in, there is no more betting: run out automatically
-    const live = this.players.filter((p) => p.inHand && !p.busted);
-    const anyAllIn = live.some((p) => p.allIn);
-    if (anyAllIn) {
-      this.runOutToShowdown();
-    }
     this.liveBetThisStreet = false;
     this.dbg('resetBettingForNewStreet', { street: this.street, actor: this.actorSeatIndex, lastToAct: this.lastToActSeatIndex });
   }
@@ -435,9 +429,15 @@ export class GameEngine {
       // Close the betting round if caller faced a live bet/raise this street;
       // otherwise (e.g., SB completing to BB preflop) pass action to next player.
       if (this.liveBetThisStreet || this.actorSeatIndex === this.lastToActSeatIndex) {
+        // If any player is all-in, do NOT advance the street synchronously;
+        // schedule staged runout so clients see each card dealt with delay.
+        if (this.players.some((p) => p.inHand && !p.busted && p.allIn)) {
+          this.runOutToShowdown();
+          this.actorDeadlineMs = Date.now() + this.primaryDecisionMs;
+          this.dbg('action call closes street (all-in runout scheduled)', { playerId });
+          return;
+        }
         this.advanceStreet();
-        // Any all-in → schedule runout to showdown (simplified HU, no sidepots)
-        if (this.players.some((p) => p.inHand && !p.busted && p.allIn)) { this.runOutToShowdown(); }
         this.actorDeadlineMs = Date.now() + this.primaryDecisionMs;
         this.dbg('action call closes street', { playerId });
         return;
