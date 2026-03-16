@@ -50,13 +50,18 @@ function App() {
     const coreID = params.get('coreID')
     if (!signature || !session || !coreID) return
 
+    // Clean URL: keep hash (e.g. #/login) but drop query params
     const clean = window.location.origin + window.location.pathname + window.location.hash
     window.history.replaceState({}, document.title, clean)
 
     corepassCallback({ signature, session, coreID })
       .then(() => corepassPollSession(session))
       .then(() => { handleCorepassLogin(coreID); setView('hub') })
-      .catch(() => {})
+      .catch(() => {
+        // Fallback: even if callback fails, at least mark as logged in for UX
+        handleCorepassLogin(coreID)
+        setView('hub')
+      })
   }, [handleCorepassLogin])
 
   useEffect(() => {

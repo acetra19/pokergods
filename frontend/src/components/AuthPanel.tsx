@@ -28,7 +28,8 @@ export default function AuthPanel({ onLogin }: { onLogin: (p: { username: string
       const qr = `https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${encodeURIComponent(data.loginUri)}`
       setQrUrl(qr)
       if (isMobile) {
-        const returnUrl = window.location.origin + window.location.pathname
+        // Return to explicit /#/login so the SPA knows we're in login view
+        const returnUrl = window.location.origin + window.location.pathname + '#/login'
         const uri = 'corepass:login/?sess=' + encodeURIComponent(data.sessionId) +
           '&conn=' + encodeURIComponent(returnUrl) + '&type=app-link'
         setAppLinkUri(uri)
