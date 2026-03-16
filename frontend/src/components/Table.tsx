@@ -83,7 +83,8 @@ const [showEmoji, setShowEmoji] = useState(false)
   const revealedCountRef = useRef<number>(0)
   useEffect(()=>{ revealedCountRef.current = revealedCount }, [revealedCount])
   useEffect(()=>{ handRef.current = hand }, [hand])
-  // Clientseitiger Chip-Stand, der während Showdown bis zur vollständigen Reveal nicht vorgezogen wird
+  const handFrozenRef = useRef(false)
+  const pendingHandRef = useRef<any[] | null>(null)
   const displayChipsRef = useRef<Record<string, number>>({})
   const committedRef = useRef<Record<string, number>>({})
   const feltRef = useRef<HTMLDivElement|null>(null)
@@ -181,7 +182,12 @@ const [showEmoji, setShowEmoji] = useState(false)
         })()
         if (sig !== prevHandSig.current) {
           prevHandSig.current = sig
-          setHand(states)
+          if (handFrozenRef.current) {
+            pendingHandRef.current = states
+          } else {
+            setHand(states)
+            pendingHandRef.current = null
+          }
           try {
             const tid = (mine && mine.tableId) || (states[0]?.tableId)
             if (tid && blindsByTable[tid]) {
@@ -315,20 +321,20 @@ const [showEmoji, setShowEmoji] = useState(false)
           const st = (handRef.current && handRef.current[0]) || myTableRef.current
           const amParticipant = !!(st && st.players && Array.isArray(st.players) && st.players.some((p:any)=> p?.playerId === wallet))
           if (!amParticipant) return
-          // If overlay not visible, use last cached showdown state (race/lagsafe)
-          if (overlayStateRef.current !== 'visible') {
-            const snap = lastShowdownStateRef.current
-            if (snap && lastShowdownRef.current && (Date.now() - lastShowdownRef.current.ts) < 8000) {
-              try {
-                const winnersEnriched = (snap.lastWinners || []).map((w:any)=> ({ ...w, displayName: nameOf(w.playerId) }))
-                const showdownEnriched = (snap.showdownInfo || []).map((s:any)=> ({ ...s, displayName: nameOf(s.playerId) }))
-                const holesByPlayer: Record<string, any[]|null> = {}
-                try { (snap.players||[]).forEach((p:any)=> { holesByPlayer[p.playerId] = p.hole || null }) } catch {}
-                sessionStorage.setItem('pg_last_match', JSON.stringify({ tableId: snap.tableId, handNumber: snap.handNumber, community: snap.community||[], holesByPlayer, winners: winnersEnriched, showdownInfo: showdownEnriched, you: wallet }))
-              } catch {}
-            }
-            window.location.hash = '#/summary'
+          // Let the overlay flow handle it if already armed or visible
+          if (overlayStateRef.current === 'visible' || overlayStateRef.current === 'armed') return
+          // Save last showdown state as failsafe and redirect
+          const snap = lastShowdownStateRef.current
+          if (snap && lastShowdownRef.current && (Date.now() - lastShowdownRef.current.ts) < 8000) {
+            try {
+              const winnersEnriched = (snap.lastWinners || []).map((w:any)=> ({ ...w, displayName: nameOf(w.playerId) }))
+              const showdownEnriched = (snap.showdownInfo || []).map((s:any)=> ({ ...s, displayName: nameOf(s.playerId) }))
+              const holesByPlayer: Record<string, any[]|null> = {}
+              try { (snap.players||[]).forEach((p:any)=> { holesByPlayer[p.playerId] = p.hole || null }) } catch {}
+              sessionStorage.setItem('pg_last_match', JSON.stringify({ tableId: snap.tableId, handNumber: snap.handNumber, community: snap.community||[], holesByPlayer, winners: winnersEnriched, showdownInfo: showdownEnriched, you: wallet }))
+            } catch {}
           }
+          window.location.hash = '#/summary'
         } catch {}
       }
       if ((m as any)?.type === 'emoji') {
@@ -535,10 +541,9 @@ const [showEmoji, setShowEmoji] = useState(false)
     const currStreet = street as any
     const prevStreet = prevStreetRef.current
     if (currStreet === 'showdown' && prevStreet !== 'showdown') {
-      // add extra 1300ms before starting our client reveal sequencer
+      handFrozenRef.current = true
       nextRevealHoldMsRef.current += 1300
       showdownStartMsRef.current = Date.now()
-      // Snapshot commitments and freeze displays defensiv für Preflop-All‑In → Server springt direkt in Showdown
       try {
         const st0: any = hand && hand[0]
         if (st0 && Array.isArray(st0.players)) {
@@ -572,6 +577,21 @@ const [showEmoji, setShowEmoji] = useState(false)
   const inRevealUI = useMemo(() => isShowdownReveal, [isShowdownReveal])
   const inRevealUIRef = useRef(inRevealUI)
   useEffect(()=> { inRevealUIRef.current = inRevealUI }, [inRevealUI])
+
+  // Release hand freeze after all cards revealed + short delay for winner float
+  useEffect(() => {
+    if (!handFrozenRef.current) return
+    if (revealedCount < 5 && overlayStateRef.current !== 'visible') return
+    const delay = overlayStateRef.current === 'visible' ? 6000 : 2500
+    const timer = setTimeout(() => {
+      handFrozenRef.current = false
+      if (pendingHandRef.current) {
+        setHand(pendingHandRef.current)
+        pendingHandRef.current = null
+      }
+    }, delay)
+    return () => clearTimeout(timer)
+  }, [revealedCount, showOverlay])
 
   // Watchdog: Falls wir im Showdown festhängen und der River clientseitig nicht ankommt, aktiv nachladen
   useEffect(() => {
@@ -665,7 +685,13 @@ const [showEmoji, setShowEmoji] = useState(false)
             overlayStateRef.current = 'visible'
             overlayHoldUntilMsRef.current = 0
           }, 1800)
-          setTimeout(()=> { try { window.location.hash = '#/summary' } catch {} }, 5000)
+          setTimeout(()=> {
+            try {
+              handFrozenRef.current = false
+              pendingHandRef.current = null
+              window.location.hash = '#/summary'
+            } catch {}
+          }, 6500)
           // (Overlay-State ist bereits gesetzt)
   }, [])
 
@@ -676,7 +702,8 @@ const [showEmoji, setShowEmoji] = useState(false)
       postHoldUntilMsRef.current = 0
       tableSnapshotRef.current = null
       lastWinFloatSigRef.current = ''
-      lastStreetFloatRef.current = ''
+      handFrozenRef.current = false
+      pendingHandRef.current = null
       try { inRevealUIRef.current = false } catch {}
       // Reset frozen chip displays/committed maps to avoid stale zeros at new hand
       try { displayChipsRef.current = {}; committedRef.current = {} } catch {}
@@ -954,7 +981,7 @@ const [showEmoji, setShowEmoji] = useState(false)
         const snap = lastShowdownStateRef.current
         const st: any = hand && hand[0]
         const amParticipant = !!(st && st.players && Array.isArray(st.players) && st.players.some((p:any)=> p?.playerId === wallet))
-        if (recent && snap && amParticipant && overlayStateRef.current !== 'visible') {
+        if (recent && snap && amParticipant && overlayStateRef.current !== 'visible' && overlayStateRef.current !== 'armed') {
           try {
             const winnersEnriched = (snap.lastWinners || []).map((w:any)=> ({ ...w, displayName: nameOf(w.playerId) }))
             const showdownEnriched = (snap.showdownInfo || []).map((s:any)=> ({ ...s, displayName: nameOf(s.playerId) }))
