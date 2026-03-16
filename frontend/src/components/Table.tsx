@@ -1001,7 +1001,8 @@ const [showEmoji, setShowEmoji] = useState(false)
     const id = Math.random().toString(36).slice(2)
     setFloatTexts((arr)=> [...arr, { id, text, x: xPct, y: yPct, size, style }])
     try {
-      const currentTableId = (hand && hand[0]?.tableId) || renderTables[0]?.tableId || null
+      const h = handRef.current
+      const currentTableId = (h && h[0]?.tableId) || myTableRef.current?.tableId || null
       const line = { ts: Date.now(), text: `${text}`, tableId: currentTableId }
       setChatLines((prev)=> [line as any, ...prev].slice(0,60))
     } catch {}
@@ -1329,22 +1330,17 @@ const [showEmoji, setShowEmoji] = useState(false)
           {/* Chat UI anchored to felt-wrap (bottom-right of wrapper) */}
             <button className="chat-toggle" style={{ right: 16, left: 'auto', bottom: 6 }} onClick={()=> setChatOpen(!chatOpen)}>{chatOpen? 'Hide log':'Show log'}</button>
           {toast && <div className="toast">{toast}</div>}
-          {chatOpen && (()=>{
-            const currentTableId = (hand && hand[0]?.tableId) || t.tableId;
-            const filtered = chatLines.filter((l)=> l.tableId == null || l.tableId === currentTableId);
-            const lines = filtered.length > 0 ? filtered : chatLines;
-            return (
+          {chatOpen && (
               <div className="chat-panel">
-                {lines.map((l)=> (
-                  <div key={`${l.ts}-${l.tableId ?? 'all'}`} className="line">{new Date(l.ts).toLocaleTimeString()} · {(l.tableId ? `[${l.tableId}] ` : '')}{l.text}</div>
+                {chatLines.slice(0, 40).map((l, i)=> (
+                  <div key={`${l.ts}-${i}`} className="line">{new Date(l.ts).toLocaleTimeString()} · {l.text}</div>
                 ))}
-                <form onSubmit={(e)=>{ e.preventDefault(); const msg = chatInput.trim(); if (!msg) return; try { const currentTableId = (hand && hand[0]?.tableId) || t.tableId; (window as any).pg_ws_send && (window as any).pg_ws_send({ type:'chat', tableId: currentTableId, message: msg }); setChatInput('') } catch {} }} style={{ display:'flex', gap:6, marginTop:6 }}>
+                <form onSubmit={(e)=>{ e.preventDefault(); const msg = chatInput.trim(); if (!msg) return; try { const tid = handRef.current?.[0]?.tableId || myTableRef.current?.tableId || t.tableId; (window as any).pg_ws_send && (window as any).pg_ws_send({ type:'chat', tableId: tid, message: msg }); setChatInput('') } catch {} }} style={{ display:'flex', gap:6, marginTop:6 }}>
                   <input value={chatInput} onChange={(e)=> setChatInput(e.target.value)} placeholder="message…" style={{ flex:1 }} />
                   <button className="btn btn-primary" type="submit">Send</button>
                 </form>
               </div>
-            )
-          })()}
+          )}
           </div>
         {actionState && (()=>{
           const actor = actionState.actorPlayerId;
