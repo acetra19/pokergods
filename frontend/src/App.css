@@ -380,29 +380,52 @@
 }
 .blind-badge.bb { background: radial-gradient(circle at 35% 35%, #e6f2ff, #a9cdff); color:#071c42; left: auto; right: -10px; }
 .seat .hole-wrap { position: relative; z-index: 3; }
-/* Villain fold: clear slide/muck so player always sees what happened */
+/* Villain fold: very visible slide/muck + whole-seat highlight */
+.seat.fold-badge {
+  overflow: visible;
+}
+.seat.fold-badge::before {
+  content: '';
+  position: absolute;
+  inset: -4px;
+  border-radius: 14px;
+  background: rgba(220, 38, 38, 0.2);
+  animation: foldSeatPulse 1s ease-out forwards;
+  pointer-events: none;
+  z-index: 2;
+}
+@keyframes foldSeatPulse {
+  0% { opacity: 0; transform: scale(0.98); }
+  15% { opacity: 1; transform: scale(1.02); }
+  30% { transform: scale(1); }
+  80% { opacity: 0.85; }
+  100% { opacity: 0; transform: scale(1); }
+}
 .seat .hole-wrap.villain.fold-slide {
-  animation: foldSlide 700ms cubic-bezier(0.25, 0.1, 0.35, 1) forwards;
+  animation: foldSlide 750ms cubic-bezier(0.2, 0.4, 0.4, 1) forwards;
+  will-change: transform;
+  transform-origin: left center;
 }
 .seat .hole-wrap.villain.fold-slide .card-sm,
 .seat .hole-wrap.villain.fold-slide .card-wrap { pointer-events: none; }
 @keyframes foldSlide {
-  0% { transform: translateX(0) rotate(0deg); opacity: 1; }
+  0% { transform: translateX(0) rotate(0deg) scale(1); opacity: 1; }
   100% {
-    transform: translateX(100px) rotate(-18deg) scale(0.85);
+    transform: translateX(110px) rotate(-22deg) scale(0.8);
     opacity: 0;
   }
 }
-/* FOLD badge on villain seat – unmistakable visual cue */
+/* Big FOLD pill on villain seat – impossible to miss */
 .seat.fold-badge .fold-badge-pill {
-  animation: foldBadgeIn 700ms ease-out forwards;
+  animation: foldBadgeIn 1s ease-out forwards;
+  z-index: 12;
 }
 @keyframes foldBadgeIn {
-  0% { opacity: 0; transform: translate(-50%, -50%) scale(0.6); }
-  15% { opacity: 1; transform: translate(-50%, -50%) scale(1.1); }
-  25% { transform: translate(-50%, -50%) scale(1); }
+  0% { opacity: 0; transform: translate(-50%, -50%) scale(0.5); }
+  12% { opacity: 1; transform: translate(-50%, -50%) scale(1.15); }
+  22% { transform: translate(-50%, -50%) scale(1); }
   75% { opacity: 1; }
-  100% { opacity: 0; transform: translate(-50%, -50%) scale(0.95); }
+  100% { opacity: 0; transform: translate(-50%, -50%) scale(1); }
 }
 .seat .time-pill {
   position: absolute;
@@ -760,16 +783,16 @@
   animation: floatSlide 2200ms ease-out forwards;
 }
 .ft-action-fold {
-  color: #fca5a5; font-size: 18px !important; font-weight: 800; font-style: italic; letter-spacing: 0.5px;
-  text-shadow: 0 0 12px rgba(248,113,113,0.5), 0 2px 10px rgba(0,0,0,0.5);
-  animation: floatFold 2200ms ease-out forwards;
+  color: #fecaca; font-size: 20px !important; font-weight: 900; font-style: italic; letter-spacing: 0.08em;
+  text-shadow: 0 0 16px rgba(248,113,113,0.7), 0 2px 12px rgba(0,0,0,0.6);
+  animation: floatFold 2600ms ease-out forwards;
 }
 @keyframes floatFold {
-  0% { opacity: 0; transform: translate(-50%, -44%) scale(0.85); }
-  12% { opacity: 1; transform: translate(-50%, -50%) scale(1.08); }
-  25% { transform: translate(-50%, -50%) scale(1); }
-  70% { opacity: 0.95; transform: translate(-50%, -58%); }
-  100% { opacity: 0; transform: translate(-50%, -70%); }
+  0% { opacity: 0; transform: translate(-50%, -44%) scale(0.9); }
+  10% { opacity: 1; transform: translate(-50%, -50%) scale(1.12); }
+  22% { transform: translate(-50%, -50%) scale(1); }
+  75% { opacity: 1; transform: translate(-50%, -55%); }
+  100% { opacity: 0; transform: translate(-50%, -72%); }
 }
 .ft-action-bet {
   color: #fbbf24; font-size: 17px !important; font-weight: 900;

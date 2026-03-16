@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState, useCallback, type CSSProperties } from 'react'
+import { flushSync } from 'react-dom'
 import pgLogo from '../images/pokergods.png'
 import pgCover from '../images/pokergodscover.png'
 import type { TableState, BlindLevel } from '../types'
@@ -427,16 +428,16 @@ const [showEmoji, setShowEmoji] = useState(false)
             else if (act === 'call') { label = `${nm} calls${amt ? ' ' + amt : ''}`; floatStyle = 'action-call' }
             else if (act === 'fold') {
               label = `${nm} folds`; floatStyle = 'action-fold'
-              setVillainFoldPlayerId(p.playerId)
+              flushSync(() => setVillainFoldPlayerId(p.playerId))
               if (audioAllowedRef.current) playSoundCore('fold', () => { resumeAudio(); playFold() })
-              setTimeout(() => setVillainFoldPlayerId(null), 800)
+              setTimeout(() => setVillainFoldPlayerId(null), 1200)
             }
             else if (act === 'bet') { label = `${nm} bets ${amt ?? ''}`; floatStyle = 'action-bet' }
             else if (act === 'raise') { label = `${nm} raises to ${amt ?? ''}`; floatStyle = 'action-raise' }
             else { label = `${nm} ${act}` }
             if (isAllIn && act !== 'fold') { label = `${nm} ALL-IN!`; floatStyle = 'action-allin' }
             if (floatStyle === 'action-fold') {
-              addFloat(label, 42, 26, 20, floatStyle)
+              addFloat(label, 50, 28, 22, floatStyle)
             } else {
               addFloat(label, 30 + Math.random() * 30, 14 + Math.random() * 10, undefined, floatStyle)
             }
