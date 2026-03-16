@@ -226,13 +226,13 @@ const [showEmoji, setShowEmoji] = useState(false)
               try { if (holdingShowdownTimerRef.current) clearTimeout(holdingShowdownTimerRef.current) } catch {}
               pendingStatesAfterHoldRef.current = states
               setHand([snap])
-              holdingShowdownUntilRef.current = now + 8000
+              holdingShowdownUntilRef.current = now + 12000
               holdingShowdownTimerRef.current = setTimeout(() => {
                 holdingShowdownTimerRef.current = null
                 holdingShowdownUntilRef.current = 0
                 setHand(pendingStatesAfterHoldRef.current || [])
                 navigateToSummary()
-              }, 8000)
+              }, 12000)
               pendingHandRef.current = null
             } else {
               setHand(states)
@@ -385,7 +385,7 @@ const [showEmoji, setShowEmoji] = useState(false)
           // Let the overlay flow handle it if already armed or visible
           if (overlayStateRef.current === 'visible' || overlayStateRef.current === 'armed') return
           const snap = lastShowdownStateRef.current
-          const recent = snap && lastShowdownRef.current && (Date.now() - lastShowdownRef.current.ts) < 8000
+          const recent = snap && lastShowdownRef.current && (Date.now() - lastShowdownRef.current.ts) < 12000
           // If we have a full showdown to show but haven't revealed yet, don't redirect now – let reveal + overlay or holding flow do it
           const hasFullShowdown = !!(snap?.community?.length >= 5 && Array.isArray(snap.showdownInfo) && snap.showdownInfo.length > 0)
           if (recent && hasFullShowdown && revealedCountRef.current < 5) return
@@ -1049,14 +1049,16 @@ const [showEmoji, setShowEmoji] = useState(false)
       return
     }
     if (!hadTableRef.current || renderTables.length !== 0) return
-    // If table vanished right after a real showdown, fail-safe navigate to summary using last cached showdown state
+    // If table vanished after a real showdown, fail-safe navigate to summary. Use long delay when participant
+    // so overlay (6.5s) or holding (12s) always wins and we don't cut off the runout.
     try { if (redirectTimerRef.current) { clearTimeout(redirectTimerRef.current) } } catch {}
+    const recent = lastShowdownRef.current && (Date.now() - lastShowdownRef.current.ts) < 12000
+    const snap = lastShowdownStateRef.current
+    const st: any = hand && hand[0]
+    const amParticipant = !!(st && st.players && Array.isArray(st.players) && st.players.some((p:any)=> p?.playerId === wallet))
+    const delayMs = (recent && snap && amParticipant) ? 11000 : 600
     redirectTimerRef.current = setTimeout(() => {
       try {
-        const recent = lastShowdownRef.current && (Date.now() - lastShowdownRef.current.ts) < 8000
-        const snap = lastShowdownStateRef.current
-        const st: any = hand && hand[0]
-        const amParticipant = !!(st && st.players && Array.isArray(st.players) && st.players.some((p:any)=> p?.playerId === wallet))
         if (recent && snap && amParticipant && overlayStateRef.current !== 'visible' && overlayStateRef.current !== 'armed') {
           try {
             const winnersEnriched = (snap.lastWinners || []).map((w:any)=> ({ ...w, displayName: nameOf(w.playerId) }))
@@ -1069,13 +1071,20 @@ const [showEmoji, setShowEmoji] = useState(false)
         }
       } catch {}
       hadTableRef.current = false
-    }, 600)
+    }, delayMs)
     return () => { try { if (redirectTimerRef.current) clearTimeout(redirectTimerRef.current) } catch {} }
   }, [renderTables.length, showOverlay])
 
-  // Single place to go to summary; prevents double redirect from hu_postmatch + overlay timeout + vanish effect
+  // Single place to go to summary; prevents double redirect (ref + sessionStorage for remounts)
   const navigateToSummary = useCallback(() => {
     if (summaryRedirectDoneRef.current) return
+    try {
+      const key = 'pg_summary_redirect_ts'
+      const raw = sessionStorage.getItem(key)
+      const last = raw ? parseInt(raw, 10) : 0
+      if (Date.now() - last < 15000) return
+      sessionStorage.setItem(key, String(Date.now()))
+    } catch {}
     summaryRedirectDoneRef.current = true
     window.location.hash = '#/summary'
   }, [])

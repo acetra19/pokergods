@@ -1007,9 +1007,8 @@ setInterval(() => {
           // Start hold window. Use shorter hold for fold-ends (no showdown reveal),
           // longer hold only when real showdown info is present.
           const hasShowdownReveal = Array.isArray(pub.showdownInfo) && pub.showdownInfo.length > 0;
-          // Client Reveal-Flow (All-In): Flop/Turn/River pacing + trace dauert ~6.5s
-          // Halte deshalb Showdown etwas länger, damit der Client fertig ist
-          const baseHoldMs = hasShowdownReveal ? 7500 : 600;
+          // Client Reveal-Flow (All-In): Flop/Turn/River pacing + overlay ~6.5s; longer hold so laggy clients still see runout
+          const baseHoldMs = hasShowdownReveal ? 12000 : 600;
           postShowdownHoldUntilMs.set(tableId, now + baseHoldMs);
           diag('showdown_hold_start', { tableId, handNumber: pub.handNumber, baseHoldMs, hasShowdownReveal });
           // Broadcast winner details only now (after staged runout), not right after the all-in call
