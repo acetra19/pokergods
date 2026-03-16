@@ -245,7 +245,8 @@ const [showEmoji, setShowEmoji] = useState(false)
                 setRiverPulse((curr) => (curr === stamp ? 0 : curr))
               }, 1200)
             }
-            if (st.lastWinners && st.lastWinners.length && st.street === 'showdown' && Array.isArray(st.showdownInfo) && st.showdownInfo.length>0) {
+            const communityComplete = Array.isArray(st.community) && st.community.length >= 5
+            if (communityComplete && st.lastWinners && st.lastWinners.length && st.street === 'showdown' && Array.isArray(st.showdownInfo) && st.showdownInfo.length>0) {
               if (audioAllowedRef.current) playSoundCore('win', () => { resumeAudio(); playWin() })
               const winner = st.lastWinners[0]
               const winnerName = nameOf(winner?.playerId)

@@ -277,18 +277,15 @@ export class GameEngine {
   }
 
   private isRunningOut = false;
+  /** Schedule staged runout (flop→turn→river→showdown) so clients see each street; do not run to showdown in one go. */
   private runOutToShowdown() {
     if (this.isRunningOut || this.street === Street.Showdown) {
       this.dbg('runOutToShowdown:skip');
       return;
     }
     this.isRunningOut = true;
-    while ((this.street as unknown as Street) !== Street.Showdown) {
-      this.advanceStreet();
-    }
-    this.runoutNextAtMs = 0;
-    this.isRunningOut = false;
-    this.dbg('runOutToShowdown');
+    this.runoutNextAtMs = Date.now() + this.runoutStepMs;
+    this.dbg('runOutToShowdown:scheduled', { runoutNextAtMs: this.runoutNextAtMs });
   }
 
   public getPublic(): TablePublicState {
@@ -501,6 +498,7 @@ export class GameEngine {
       changed = true;
       if (this.street === Street.Showdown) {
         this.runoutNextAtMs = 0;
+        this.isRunningOut = false;
       } else {
         this.runoutNextAtMs = now + this.runoutStepMs;
       }

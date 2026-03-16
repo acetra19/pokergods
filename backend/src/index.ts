@@ -357,22 +357,7 @@ app.post("/hand/action", express.json(), (req, res) => {
       } as any);
     } catch {}
 
-    // On showdown, broadcast winner details
-    if (pub.street === 'showdown' && pub.lastWinners?.length) {
-      try {
-        const winners = (pub.lastWinners || []).map((w: any) => ({
-          ...w,
-          displayName: resolveDisplayName(w.playerId),
-          category: (pub.showdownInfo || []).find((s: any) => s.playerId === w.playerId)?.category || '',
-        }));
-        winners.forEach((w: any) => {
-          const winMsg = w.category
-            ? `${w.displayName} wins ${w.amount} with ${w.category}`
-            : `${w.displayName} wins ${w.amount}`;
-          broadcastChat(tableId, winMsg);
-        });
-      } catch {}
-    }
+    // Winner details are broadcast only when showdown is reached after staged runout (see tick loop).
 
     res.json({ ok:true });
   } catch (e: any) {
@@ -886,6 +871,22 @@ setInterval(() => {
           const baseHoldMs = hasShowdownReveal ? 7500 : 600;
           postShowdownHoldUntilMs.set(tableId, now + baseHoldMs);
           diag('showdown_hold_start', { tableId, handNumber: pub.handNumber, baseHoldMs, hasShowdownReveal });
+          // Broadcast winner details only now (after staged runout), not right after the all-in call
+          try {
+            if (pub.lastWinners?.length) {
+              const winners = (pub.lastWinners || []).map((w: any) => ({
+                ...w,
+                displayName: resolveDisplayName(w.playerId),
+                category: (pub.showdownInfo || []).find((s: any) => s.playerId === w.playerId)?.category || '',
+              }));
+              winners.forEach((w: any) => {
+                const winMsg = w.category
+                  ? `${w.displayName} wins ${w.amount} with ${w.category}`
+                  : `${w.displayName} wins ${w.amount}`;
+                broadcastChat(tableId, winMsg);
+              });
+            }
+          } catch {}
           return; // keep broadcasting current showdown state
         }
         if (now < holdUntil) {
