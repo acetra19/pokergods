@@ -1,7 +1,7 @@
 import { useEffect, useState, useCallback } from 'react'
 import './App.css'
 import { getLobby, connectWS, corepassCallback, corepassPollSession } from './api'
-import { isMuted, setMuted, hookAutoResume, setSoundDebug, setSoundProfile, getSoundProfile } from './utils/sound'
+import { isMuted, setMuted, hookAutoResume, setSoundDebug } from './utils/sound'
 import TableView from './components/Table'
 import MatchSummary from './components/MatchSummary'
 import AuthPanel from './components/AuthPanel'
@@ -25,9 +25,6 @@ function App() {
   const [loggedIn, setLoggedIn] = useState<boolean>(false)
   const [view, setView] = useState<View>('landing')
   const [tableId, setTableId] = useState<string | null>(null)
-  const [profile, setProfile] = useState<'subtle'|'classic'>(() => {
-    try { return getSoundProfile() } catch { return 'subtle' }
-  })
 
   useEffect(() => {
     getLobby().then(setLobby).catch(console.error)
