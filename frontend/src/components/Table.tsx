@@ -37,7 +37,7 @@ export default function TableView({ wallet, tableId }: { wallet?: string, tableI
   const [chatLines, setChatLines] = useState<{ts:number,text:string,tableId:string|null}[]>([])
   const [chatInput, setChatInput] = useState<string>('')
   const [toast] = useState<string>('')
-  const [floatTexts, setFloatTexts] = useState<Array<{ id:string; text:string; x:number; y:number; size?:number }>>([])
+  const [floatTexts, setFloatTexts] = useState<Array<{ id:string; text:string; x:number; y:number; size?:number; style?:string }>>([])
   const [dealFx, setDealFx] = useState<Array<{ id:string; x:number; y:number; rot:number }>>([])
   const [stageAnimKey, setStageAnimKey] = useState<number>(0)
   const [actorAnimKey, setActorAnimKey] = useState<number>(0)
@@ -247,7 +247,19 @@ const [showEmoji, setShowEmoji] = useState(false)
             }
             if (st.lastWinners && st.lastWinners.length && st.street === 'showdown' && Array.isArray(st.showdownInfo) && st.showdownInfo.length>0) {
               if (audioAllowedRef.current) playSoundCore('win', () => { resumeAudio(); playWin() })
-              addFloat('Showdown', 38, 28)
+              const winner = st.lastWinners[0]
+              const winnerName = nameOf(winner?.playerId)
+              const winnerInfo = (st.showdownInfo || []).find((s:any) => s.playerId === winner?.playerId)
+              const category = winnerInfo?.category || ''
+              const isMe = winner?.playerId === wallet
+              if (category) {
+                addFloat(
+                  isMe ? `You win with ${category}!` : `${winnerName} wins with ${category}`,
+                  38, 22, 20, isMe ? 'action-win-hero' : 'action-win-villain'
+                )
+              } else {
+                addFloat(isMe ? 'You win!' : `${winnerName} wins!`, 38, 22, 20, isMe ? 'action-win-hero' : 'action-win-villain')
+              }
             }
           }
         } else {
@@ -305,6 +317,28 @@ const [showEmoji, setShowEmoji] = useState(false)
           const currId = (handRef.current && handRef.current[0]?.tableId) || renderTables[0]?.tableId
           if (e && e.tableId && currId && e.tableId === currId) {
             addFloat(String(e.emoji || '🙂'), 68, 24, 28)
+          }
+        } catch {}
+      }
+      if (m?.type === 'tournament' && m.payload?.event === 'player_action') {
+        try {
+          const p = m.payload as any
+          const currTid = (handRef.current && handRef.current[0]?.tableId) || renderTables[0]?.tableId
+          if (p.tableId && currTid && p.tableId === currTid && p.playerId !== wallet) {
+            const nm = p.displayName || p.playerId?.slice(0,8) || 'Opponent'
+            const act = p.action as string
+            const amt = p.amount
+            const isAllIn = !!p.allIn
+            let label = ''
+            let floatStyle = 'action-check'
+            if (act === 'check') { label = `${nm} checks`; floatStyle = 'action-check' }
+            else if (act === 'call') { label = `${nm} calls${amt ? ' ' + amt : ''}`; floatStyle = 'action-call' }
+            else if (act === 'fold') { label = `${nm} folds`; floatStyle = 'action-fold' }
+            else if (act === 'bet') { label = `${nm} bets ${amt ?? ''}`; floatStyle = 'action-bet' }
+            else if (act === 'raise') { label = `${nm} raises to ${amt ?? ''}`; floatStyle = 'action-raise' }
+            else { label = `${nm} ${act}` }
+            if (isAllIn && act !== 'fold') { label = `${nm} ALL-IN!`; floatStyle = 'action-allin' }
+            addFloat(label, 30 + Math.random() * 30, 14 + Math.random() * 10, undefined, floatStyle)
           }
         } catch {}
       }
@@ -909,19 +943,15 @@ const [showEmoji, setShowEmoji] = useState(false)
     return () => { try { if (redirectTimerRef.current) clearTimeout(redirectTimerRef.current) } catch {} }
   }, [renderTables.length, showOverlay])
 
-  // helper to add floating text (percentage coords relative to felt center)
-  function addFloat(text: string, xPct: number, yPct: number, size?: number) {
+  function addFloat(text: string, xPct: number, yPct: number, size?: number, style?: string) {
     const id = Math.random().toString(36).slice(2)
-    const x = xPct
-    const y = yPct
-    setFloatTexts((arr)=> [...arr, { id, text, x, y, size }])
-    // Mirror into local log so the "Show log" panel always has context
+    setFloatTexts((arr)=> [...arr, { id, text, x: xPct, y: yPct, size, style }])
     try {
       const currentTableId = (hand && hand[0]?.tableId) || renderTables[0]?.tableId || null
-      const line = { ts: Date.now(), text: `[FX] ${text}`, tableId: currentTableId }
+      const line = { ts: Date.now(), text: `${text}`, tableId: currentTableId }
       setChatLines((prev)=> [line as any, ...prev].slice(0,60))
     } catch {}
-    setTimeout(()=> setFloatTexts((arr)=> arr.filter(f=> f.id !== id)), 2200)
+    setTimeout(()=> setFloatTexts((arr)=> arr.filter(f=> f.id !== id)), 2600)
   }
 
   const triggerHeroEmoji = (emoji: string, seatId?: string) => {
@@ -1080,7 +1110,7 @@ const [showEmoji, setShowEmoji] = useState(false)
                 )}
                 {/* Floating commentary */}
                 {floatTexts.map((f)=> (
-                  <div key={f.id} className="float-text" style={{ left:`${f.x}%`, top:`${f.y}%`, fontSize: f.size ?? 18 }}>
+                  <div key={f.id} className={`float-text${f.style ? ' ft-' + f.style : ''}`} style={{ left:`${f.x}%`, top:`${f.y}%`, fontSize: f.size ?? 18 }}>
                     {f.text}
                   </div>
                 ))}

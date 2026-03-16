@@ -327,18 +327,53 @@ app.post("/hand/action", express.json(), (req, res) => {
   if (!eng) { res.status(404).json({ ok:false, error:"table not found" }); return; }
   try {
     eng.applyAction(playerId, type, amount);
+    const pub = eng.getPublic();
     broadcastHandStates();
     broadcastActionStates();
-    // Chat: beschreibe die Aktion kurz
+
+    const disp = resolveDisplayName(playerId);
+    const isAllIn = pub.players?.find((p: any) => p.playerId === playerId)?.allIn ?? false;
+
+    let chatMsg = `${disp} ${type}s`;
+    if (type === 'bet') chatMsg = `${disp} bets ${amount ?? ''}`;
+    else if (type === 'raise') chatMsg = `${disp} raises to ${amount ?? ''}`;
+    else if (type === 'call') chatMsg = `${disp} calls`;
+    else if (type === 'check') chatMsg = `${disp} checks`;
+    else if (type === 'fold') chatMsg = `${disp} folds`;
+    if (isAllIn && type !== 'fold') chatMsg += ' (ALL-IN!)';
+
+    try { broadcastChat(tableId, chatMsg) } catch {}
+
+    // Broadcast a dedicated player_action event for floating UI
     try {
-      const disp = resolveDisplayName(playerId);
-      let msg = `${disp} ${type}`;
-      if (typeof amount === 'number') {
-        const needsTo = type === 'bet' || type === 'raise';
-        msg += needsTo ? ` to ${amount}` : ` ${amount}`;
-      }
-      broadcastChat(tableId, msg);
+      broadcast({
+        type: 'tournament',
+        payload: {
+          event: 'player_action',
+          tableId, playerId, displayName: disp,
+          action: type, amount: amount ?? null, allIn: isAllIn,
+          pot: pub.pot, street: pub.street,
+        },
+      } as any);
     } catch {}
+
+    // On showdown, broadcast winner details
+    if (pub.street === 'showdown' && pub.lastWinners?.length) {
+      try {
+        const winners = (pub.lastWinners || []).map((w: any) => ({
+          ...w,
+          displayName: resolveDisplayName(w.playerId),
+          category: (pub.showdownInfo || []).find((s: any) => s.playerId === w.playerId)?.category || '',
+        }));
+        winners.forEach((w: any) => {
+          const winMsg = w.category
+            ? `${w.displayName} wins ${w.amount} with ${w.category}`
+            : `${w.displayName} wins ${w.amount}`;
+          broadcastChat(tableId, winMsg);
+        });
+      } catch {}
+    }
+
     res.json({ ok:true });
   } catch (e: any) {
     res.status(400).json({ ok:false, error: String(e?.message ?? e) });
