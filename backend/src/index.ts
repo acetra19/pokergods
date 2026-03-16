@@ -20,6 +20,7 @@ import {
   broadcastToSpectators,
 } from "./bot/index.js";
 import { botRouter } from "./bot/routes.js";
+import { createCorepassRouter } from "./corepass-routes.js";
 
 declare global {
   // eslint-disable-next-line no-var
@@ -28,6 +29,7 @@ declare global {
 
 const app = express();
 app.use(cors());
+app.use(createCorepassRouter());
 // JSON-Parser nur noch gezielt pro Route einsetzen, um Parse-Fehler bei Nicht‑JSON‑Bodies zu vermeiden
 // Zentrales Error‑Handling für JSON‑Parse‑Fehler
 app.use((err: any, req: express.Request, res: express.Response, next: express.NextFunction) => {

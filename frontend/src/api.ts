@@ -333,4 +333,23 @@ export async function authChangePassword(username: string, oldPassword: string, 
   try { return JSON.parse(txt) } catch { return { ok:true } }
 }
 
+// --- CorePass login ---
+export async function corepassCreateSession(): Promise<{ ok: boolean; sessionId: string; loginUri: string }> {
+  const res = await fetch(`${BACKEND}/auth/corepass/session`, { method: 'POST' })
+  if (!res.ok) throw new Error('Failed to create CorePass session')
+  return res.json()
+}
 
+export async function corepassPollSession(sessionId: string): Promise<{ ok: boolean; pending: boolean; authenticated: boolean; address?: string; coreId?: string }> {
+  const res = await fetch(`${BACKEND}/auth/corepass/session/${encodeURIComponent(sessionId)}`)
+  return res.json()
+}
+
+export async function corepassCallback(payload: { signature: string; session: string; coreID: string }): Promise<{ ok: boolean }> {
+  const res = await fetch(`${BACKEND}/auth/corepass/callback`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(payload),
+  })
+  return res.json()
+}

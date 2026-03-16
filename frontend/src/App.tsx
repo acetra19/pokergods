@@ -1,6 +1,6 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useState, useCallback } from 'react'
 import './App.css'
-import { getLobby, connectWS } from './api'
+import { getLobby, connectWS, corepassCallback, corepassPollSession } from './api'
 import { isMuted, setMuted, hookAutoResume, setSoundDebug, setSoundProfile, getSoundProfile } from './utils/sound'
 import TableView from './components/Table'
 import MatchSummary from './components/MatchSummary'
@@ -39,6 +39,37 @@ function App() {
   const [loggedIn, setLoggedIn] = useState<boolean>(false)
   const [tableId, setTableId] = useState<string | null>(null)
   const [profile, setProfile] = useState<'subtle'|'classic'>(()=>{ try { return getSoundProfile() } catch { return 'subtle' } })
+
+  const handleCorepassLogin = useCallback((address: string) => {
+    setWallet(address)
+    setLoggedIn(true)
+    try { sessionStorage.setItem('pg_wallet', address) } catch {}
+  }, [])
+
+  // CorePass app-link return handler
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search)
+    const signature = params.get('signature')
+    const session = params.get('session')
+    const coreID = params.get('coreID')
+    if (!signature || !session || !coreID) return
+
+    const clean = window.location.origin + window.location.pathname + window.location.hash
+    window.history.replaceState({}, document.title, clean)
+
+    corepassCallback({ signature, session, coreID })
+      .then(() => corepassPollSession(session))
+      .then(() => { handleCorepassLogin(coreID); setView('human') })
+      .catch(() => {})
+  }, [handleCorepassLogin])
+
+  // Restore session from sessionStorage
+  useEffect(() => {
+    try {
+      const saved = sessionStorage.getItem('pg_wallet')
+      if (saved && saved.startsWith('cb')) { setWallet(saved); setLoggedIn(true) }
+    } catch {}
+  }, [])
 
   // Hash routing
   useEffect(() => {
@@ -181,7 +212,7 @@ function App() {
       ) : view === 'cashgames' ? (
         <CashGamesLobby onWatchTable={(tid) => { setTableId(tid); go('table') }} />
       ) : view === 'login' ? (
-        <AuthPanel onLogin={({ wallet: w })=>{ setWallet(w); setLoggedIn(true); go('human') }} />
+        <AuthPanel onLogin={({ wallet: w })=>{ handleCorepassLogin(w); go('human') }} />
       ) : view === 'table' ? (
         <TableView wallet={wallet} tableId={tableId ?? undefined} />
       ) : view === 'summary' ? (
