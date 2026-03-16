@@ -1,12 +1,11 @@
-import { useEffect, useMemo, useRef, useState, memo, useCallback, type CSSProperties } from 'react'
+import { useEffect, useMemo, useRef, useState, useCallback, type CSSProperties } from 'react'
 import pgLogo from '../images/pokergods.png'
 import pgCover from '../images/pokergodscover.png'
 import type { TableState, BlindLevel } from '../types'
 import { getSeating, handState, handActionState, handAction, connectWS, getProfile, diagLog } from '../api'
 import { formatCardLabel } from '../utils/cards'
 import { playChip, playDeal, playWin, resumeAudio, playWarnTick, playBankStart, playCheck, playLose, playOverlayCue, playShuffle, playClick } from '../utils/sound'
-import { evaluateBestFive as evalClient, compareHands as cmpClient } from '../utils/hand'
-import { SeatItem, type SeatItemProps } from './SeatItem'
+import { SeatItem } from './SeatItem'
 
 const SOUND_COOLDOWN_MS: Record<string, number> = {
   chip: 180,

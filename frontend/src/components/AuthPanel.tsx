@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
-import { corepassCreateSession, corepassPollSession, BACKEND } from '../api'
+import { corepassCreateSession, corepassPollSession } from '../api'
 
 const isMobile = /Android|iPhone|iPad|iPod/i.test(navigator.userAgent || '')
 
