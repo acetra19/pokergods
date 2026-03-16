@@ -794,9 +794,11 @@ const [showEmoji, setShowEmoji] = useState(false)
         if (chips) { chips.classList.remove('flash-once'); void chips.offsetWidth; chips.classList.add('flash-once') }
       } catch {}
       // Only play shuffle once per MATCH start (table change) and only when this client is actually seated
+      let wasNewMatch = false
       try {
         const render = renderTables[0]
         const amSeated = !!(render && Array.isArray((render as any).seats) && (render as any).seats.some((p:any)=> p?.playerId === wallet))
+        wasNewMatch = newMatchRef.current
         if (amSeated && newMatchRef.current && !didMatchShuffleRef.current) {
           didMatchShuffleRef.current = true
           resumeAudio(); playShuffle()
@@ -827,11 +829,13 @@ const [showEmoji, setShowEmoji] = useState(false)
           setTimeout(() => setDealFx([]), 460)
         }
       } catch {}
-      // Center table in viewport at match start
+      // Center table in viewport only at match start (not every new hand – avoids clunky jump if user scrolled)
       try {
-        const el = feltRef.current
-        if (el && typeof el.scrollIntoView === 'function') {
-          setTimeout(() => el.scrollIntoView({ behavior: 'smooth', block: 'center', inline: 'center' }), 60)
+        if (wasNewMatch) {
+          const el = feltRef.current
+          if (el && typeof el.scrollIntoView === 'function') {
+            setTimeout(() => el.scrollIntoView({ behavior: 'smooth', block: 'center', inline: 'center' }), 60)
+          }
         }
       } catch {}
       // minimal, robust fade-in for hole cards (opacity only)
