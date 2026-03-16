@@ -27,7 +27,7 @@ export class GameEngine {
   private actorDeadlineMs = 0;
   private actorTimebankMsByPlayer: Record<string, number> = {}; // per-player timebank
   private runoutNextAtMs: number = 0; // schedule staged runout timings
-  private readonly runoutStepMs: number = 1200;
+  private readonly runoutStepMs: number = 800;
   private liveBetThisStreet: boolean = false; // track whether a live bet/raise occurred
   // timing configuration (overridable via env)
   private primaryDecisionMs: number = Number(process.env.GE_PRIMARY_MS ?? 20_000);
@@ -219,11 +219,14 @@ export class GameEngine {
     this.committed = {};
     this.currentBet = 0;
     this.minRaise = this.bb;
-    // first to act is left of dealer on postflop
     this.actorSeatIndex = (this.dealerIndex + 1) % this.players.length;
-    // dealer (button) will be last to act to close an unchecked street
     this.lastToActSeatIndex = this.dealerIndex;
     this.actorDeadlineMs = Date.now() + this.primaryDecisionMs;
+    const live = this.players.filter((p) => p.inHand && !p.busted);
+    const anyAllIn = live.some((p) => p.allIn);
+    if (anyAllIn) {
+      this.runOutToShowdown();
+    }
     this.liveBetThisStreet = false;
     this.dbg('resetBettingForNewStreet', { street: this.street, actor: this.actorSeatIndex, lastToAct: this.lastToActSeatIndex });
   }
@@ -271,15 +274,18 @@ export class GameEngine {
   }
 
   private isRunningOut = false;
-  /** Schedule staged runout (flop→turn→river→showdown) so clients see each street; do not run to showdown in one go. */
   private runOutToShowdown() {
     if (this.isRunningOut || this.street === Street.Showdown) {
       this.dbg('runOutToShowdown:skip');
       return;
     }
     this.isRunningOut = true;
-    this.runoutNextAtMs = Date.now() + this.runoutStepMs;
-    this.dbg('runOutToShowdown:scheduled', { runoutNextAtMs: this.runoutNextAtMs });
+    while ((this.street as unknown as Street) !== Street.Showdown) {
+      this.advanceStreet();
+    }
+    this.runoutNextAtMs = 0;
+    this.isRunningOut = false;
+    this.dbg('runOutToShowdown');
   }
 
   public getPublic(): TablePublicState {
@@ -429,15 +435,8 @@ export class GameEngine {
       // Close the betting round if caller faced a live bet/raise this street;
       // otherwise (e.g., SB completing to BB preflop) pass action to next player.
       if (this.liveBetThisStreet || this.actorSeatIndex === this.lastToActSeatIndex) {
-        // If any player is all-in, do NOT advance the street synchronously;
-        // schedule staged runout so clients see each card dealt with delay.
-        if (this.players.some((p) => p.inHand && !p.busted && p.allIn)) {
-          this.runOutToShowdown();
-          this.actorDeadlineMs = Date.now() + this.primaryDecisionMs;
-          this.dbg('action call closes street (all-in runout scheduled)', { playerId });
-          return;
-        }
         this.advanceStreet();
+        if (this.players.some((p) => p.inHand && !p.busted && p.allIn)) { this.runOutToShowdown(); }
         this.actorDeadlineMs = Date.now() + this.primaryDecisionMs;
         this.dbg('action call closes street', { playerId });
         return;

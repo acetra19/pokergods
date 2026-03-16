@@ -245,21 +245,32 @@ const [showEmoji, setShowEmoji] = useState(false)
                 setRiverPulse((curr) => (curr === stamp ? 0 : curr))
               }, 1200)
             }
-            const communityComplete = Array.isArray(st.community) && st.community.length >= 5
-            if (communityComplete && st.lastWinners && st.lastWinners.length && st.street === 'showdown' && Array.isArray(st.showdownInfo) && st.showdownInfo.length>0) {
-              if (audioAllowedRef.current) playSoundCore('win', () => { resumeAudio(); playWin() })
-              const winner = st.lastWinners[0]
-              const winnerName = nameOf(winner?.playerId)
-              const winnerInfo = (st.showdownInfo || []).find((s:any) => s.playerId === winner?.playerId)
-              const category = winnerInfo?.category || ''
-              const isMe = winner?.playerId === wallet
-              if (category) {
-                addFloat(
-                  isMe ? `You win with ${category}!` : `${winnerName} wins with ${category}`,
-                  38, 22, 20, isMe ? 'action-win-hero' : 'action-win-villain'
-                )
-              } else {
-                addFloat(isMe ? 'You win!' : `${winnerName} wins!`, 38, 22, 20, isMe ? 'action-win-hero' : 'action-win-villain')
+            if (st.lastWinners && st.lastWinners.length && st.street === 'showdown' && Array.isArray(st.showdownInfo) && st.showdownInfo.length>0) {
+              const winSig = `${st.tableId}-${st.handNumber}-win`
+              if (lastWinnersSigRef.current !== winSig) {
+                lastWinnersSigRef.current = winSig
+                const winner = st.lastWinners[0]
+                const wName = nameOf(winner?.playerId)
+                const wInfo = (st.showdownInfo || []).find((s:any) => s.playerId === winner?.playerId)
+                const wCat = wInfo?.category || ''
+                const wIsMe = winner?.playerId === wallet
+                const showWinnerFloat = () => {
+                  if (audioAllowedRef.current) playSoundCore('win', () => { resumeAudio(); playWin() })
+                  if (wCat) {
+                    addFloat(wIsMe ? `You win with ${wCat}!` : `${wName} wins with ${wCat}`, 38, 22, 20, wIsMe ? 'action-win-hero' : 'action-win-villain')
+                  } else {
+                    addFloat(wIsMe ? 'You win!' : `${wName} wins!`, 38, 22, 20, wIsMe ? 'action-win-hero' : 'action-win-villain')
+                  }
+                }
+                // Wait until client has visually revealed all 5 cards
+                const waitForReveal = () => {
+                  if (revealedCountRef.current >= 5) { showWinnerFloat(); return }
+                  setTimeout(waitForReveal, 300)
+                }
+                // If already revealed (e.g. fold win with no board), show immediately
+                const serverCards = Array.isArray(st.community) ? st.community.length : 0
+                if (serverCards < 5 || revealedCountRef.current >= 5) { showWinnerFloat() }
+                else { waitForReveal() }
               }
             }
           }
