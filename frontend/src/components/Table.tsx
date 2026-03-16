@@ -76,6 +76,8 @@ const [showEmoji, setShowEmoji] = useState(false)
   const lastOverlayShownRef = useRef<{ tableId: string; handNumber: number } | null>(null)
   // Track last winners signature to only react on the first winners emission per hand
   const lastWinnersSigRef = useRef<string>('')
+  const lastWinFloatSigRef = useRef<string>('')
+  const lastStreetFloatRef = useRef<string>('')
   const [dealCountdown, setDealCountdown] = useState<number>(0)
   const [revealedCount, setRevealedCount] = useState<number>(0)
   const revealedCountRef = useRef<number>(0)
@@ -224,53 +226,59 @@ const [showEmoji, setShowEmoji] = useState(false)
             }
           } catch {}
           if (allowAudio) {
-            if (st.street === 'preflop' && st.community?.length === 0) {
-              if (audioAllowedRef.current) playSoundCore('deal', () => { resumeAudio(); playDeal() })
-              addFloat('New Hand', 38, 28)
-            }
-            if (st.street === 'flop' && st.community?.length === 3) {
-              if (audioAllowedRef.current) playSoundCore('deal', () => playDeal())
-              addFloat('Flop', 38, 28)
-            }
-            if (st.street === 'turn' && st.community?.length === 4) {
-              if (audioAllowedRef.current) playSoundCore('deal', () => playDeal())
-              addFloat('Turn', 38, 28)
-            }
-            if (st.street === 'river' && st.community?.length === 5) {
-              if (audioAllowedRef.current) playSoundCore('deal', () => playDeal())
-              addFloat('River', 38, 28)
-              const stamp = Date.now()
-              setRiverPulse(stamp)
-              setTimeout(()=> {
-                setRiverPulse((curr) => (curr === stamp ? 0 : curr))
-              }, 1200)
+            const streetSig = `${st.tableId}-${st.handNumber}-${st.street}`
+            if (streetSig !== lastStreetFloatRef.current) {
+              lastStreetFloatRef.current = streetSig
+              if (st.street === 'preflop' && st.community?.length === 0) {
+                if (audioAllowedRef.current) playSoundCore('deal', () => { resumeAudio(); playDeal() })
+                addFloat('Deal', 38, 28)
+              }
+              if (st.street === 'flop' && st.community?.length === 3) {
+                if (audioAllowedRef.current) playSoundCore('deal', () => playDeal())
+                addFloat('Flop', 38, 28)
+              }
+              if (st.street === 'turn' && st.community?.length === 4) {
+                if (audioAllowedRef.current) playSoundCore('deal', () => playDeal())
+                addFloat('Turn', 38, 28)
+              }
+              if (st.street === 'river' && st.community?.length === 5) {
+                if (audioAllowedRef.current) playSoundCore('deal', () => playDeal())
+                addFloat('River', 38, 28)
+                const stamp = Date.now()
+                setRiverPulse(stamp)
+                setTimeout(()=> {
+                  setRiverPulse((curr) => (curr === stamp ? 0 : curr))
+                }, 1200)
+              }
             }
             if (st.lastWinners && st.lastWinners.length && st.street === 'showdown' && Array.isArray(st.showdownInfo) && st.showdownInfo.length>0) {
-              const winSig = `${st.tableId}-${st.handNumber}-win`
-              if (lastWinnersSigRef.current !== winSig) {
-                lastWinnersSigRef.current = winSig
-                const winner = st.lastWinners[0]
-                const wName = nameOf(winner?.playerId)
-                const wInfo = (st.showdownInfo || []).find((s:any) => s.playerId === winner?.playerId)
-                const wCat = wInfo?.category || ''
-                const wIsMe = winner?.playerId === wallet
-                const showWinnerFloat = () => {
-                  if (audioAllowedRef.current) playSoundCore('win', () => { resumeAudio(); playWin() })
-                  if (wCat) {
-                    addFloat(wIsMe ? `You win with ${wCat}!` : `${wName} wins with ${wCat}`, 38, 22, 20, wIsMe ? 'action-win-hero' : 'action-win-villain')
-                  } else {
-                    addFloat(wIsMe ? 'You win!' : `${wName} wins!`, 38, 22, 20, wIsMe ? 'action-win-hero' : 'action-win-villain')
+              const winSig = `${st.tableId}-${st.handNumber}-winfloat`
+              if (lastWinFloatSigRef.current !== winSig) {
+                lastWinFloatSigRef.current = winSig
+                // Skip float+sound when match ends — triggerOverlay handles that case
+                const isMatchEnd = !!(st.players?.some((p:any)=> p.busted || (p.chips ?? 0) <= 0))
+                if (!isMatchEnd) {
+                  const winner = st.lastWinners[0]
+                  const wName = nameOf(winner?.playerId)
+                  const wInfo = (st.showdownInfo || []).find((s:any) => s.playerId === winner?.playerId)
+                  const wCat = wInfo?.category || ''
+                  const wIsMe = winner?.playerId === wallet
+                  const showWinnerFloat = () => {
+                    if (audioAllowedRef.current) playSoundCore('win', () => { resumeAudio(); playWin() })
+                    if (wCat) {
+                      addFloat(wIsMe ? `You win with ${wCat}!` : `${wName} wins with ${wCat}`, 38, 22, 20, wIsMe ? 'action-win-hero' : 'action-win-villain')
+                    } else {
+                      addFloat(wIsMe ? 'You win!' : `${wName} wins!`, 38, 22, 20, wIsMe ? 'action-win-hero' : 'action-win-villain')
+                    }
                   }
+                  const waitForReveal = () => {
+                    if (revealedCountRef.current >= 5) { showWinnerFloat(); return }
+                    setTimeout(waitForReveal, 300)
+                  }
+                  const serverCards = Array.isArray(st.community) ? st.community.length : 0
+                  if (serverCards < 5 || revealedCountRef.current >= 5) { showWinnerFloat() }
+                  else { waitForReveal() }
                 }
-                // Wait until client has visually revealed all 5 cards
-                const waitForReveal = () => {
-                  if (revealedCountRef.current >= 5) { showWinnerFloat(); return }
-                  setTimeout(waitForReveal, 300)
-                }
-                // If already revealed (e.g. fold win with no board), show immediately
-                const serverCards = Array.isArray(st.community) ? st.community.length : 0
-                if (serverCards < 5 || revealedCountRef.current >= 5) { showWinnerFloat() }
-                else { waitForReveal() }
               }
             }
           }
@@ -469,8 +477,15 @@ const [showEmoji, setShowEmoji] = useState(false)
     prevTableIdRef.current = currId
   }, [myTable?.tableId])
 
-  // Ensure wallet is stored for WS identify
-  useEffect(()=>{ try { if (wallet) sessionStorage.setItem('pg_wallet', wallet) } catch {} }, [wallet])
+  // Ensure wallet is stored for WS identify — re-identify on wallet change
+  useEffect(()=>{
+    try {
+      if (wallet) {
+        sessionStorage.setItem('pg_wallet', wallet)
+        ;(window as any).pg_ws_identify && (window as any).pg_ws_identify()
+      }
+    } catch {}
+  }, [wallet])
   const communityCards = useMemo(() => (myTable?.community) ?? [], [myTable])
   const pot = useMemo(() => (myTable?.pot) ?? 0, [myTable])
   const street = useMemo(() => (myTable?.street) ?? null, [myTable])
@@ -658,10 +673,10 @@ const [showEmoji, setShowEmoji] = useState(false)
     const isNewHand = (street === 'preflop' && communityCards.length === 0)
     if (isNewHand) {
       setRevealedCount(0)
-      // sobald neuer Deal beginnt: Snapshot/Hold aufheben
       postHoldUntilMsRef.current = 0
       tableSnapshotRef.current = null
-      // Reset reveal flags between hands
+      lastWinFloatSigRef.current = ''
+      lastStreetFloatRef.current = ''
       try { inRevealUIRef.current = false } catch {}
       // Reset frozen chip displays/committed maps to avoid stale zeros at new hand
       try { displayChipsRef.current = {}; committedRef.current = {} } catch {}

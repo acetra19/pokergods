@@ -32,9 +32,23 @@ export function connectWS(
     try { onStatus && onStatus('retrying', retries); } catch {}
     const openWS = () => {
       ws = new WebSocket(wsUrl);
-      ws.onopen = () => { retries = 0; try { onStatus && onStatus('open', 0); } catch {} };
-      // expose a send helper for app-level broadcasts (e.g., emojis)
+      ws.onopen = () => {
+        retries = 0
+        try { onStatus && onStatus('open', 0); } catch {}
+        try {
+          const w = sessionStorage.getItem('pg_wallet')
+          if (w) ws.send(JSON.stringify({ type:'identify', wallet: w }))
+        } catch {}
+      };
       try { (window as any).pg_ws_send = (payload: any) => { try { ws && ws.readyState === ws.OPEN && ws.send(JSON.stringify(payload)) } catch {} } } catch {}
+      try {
+        (window as any).pg_ws_identify = () => {
+          try {
+            const w = sessionStorage.getItem('pg_wallet')
+            if (w && ws && ws.readyState === ws.OPEN) ws.send(JSON.stringify({ type:'identify', wallet: w }))
+          } catch {}
+        }
+      } catch {}
       ws.onmessage = (ev) => {
         try {
           const data = JSON.parse(ev.data as string)
@@ -52,17 +66,6 @@ export function connectWS(
         }
       };
       ws.onerror = () => { try { ws && ws.close(); } catch {} };
-      // Identify current wallet (for online counter). Best-effort: wallet in sessionStorage
-      try {
-        const w = sessionStorage.getItem('pg_wallet')
-        if (w && ws && ws.readyState === ws.OPEN) {
-          ws.send(JSON.stringify({ type:'identify', wallet: w }))
-        } else {
-          setTimeout(()=>{ try {
-            const w2 = sessionStorage.getItem('pg_wallet'); if (w2 && ws && ws.readyState === ws.OPEN) ws.send(JSON.stringify({ type:'identify', wallet: w2 }))
-          } catch {} }, 200)
-        }
-      } catch {}
     }
     waitForHealth().then((ok) => {
       if (ok) openWS(); else {
