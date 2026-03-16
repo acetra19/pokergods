@@ -1202,17 +1202,19 @@ const [showEmoji, setShowEmoji] = useState(false)
                 if (eqA === null && eqB === null) return null
                 const pctA = eqA ?? (eqB !== null ? 100 - eqB : 50)
                 const pctB = eqB ?? (eqA !== null ? 100 - eqA : 50)
-                const colorOf = (pct: number) => pct >= 65 ? '#22c55e' : pct >= 45 ? '#eab308' : '#ef4444'
+                // Player (hero): high equity = green, low = red. Villain: from player POV, high villain % = red, low = green.
+                const colorForHero = (pct: number) => pct >= 65 ? '#22c55e' : pct >= 45 ? '#eab308' : '#ef4444'
+                const colorForVillain = (pct: number) => pct >= 65 ? '#ef4444' : pct >= 45 ? '#eab308' : '#22c55e'
                 return (
                   <div className="equity-bar-felt">
                     <div className="equity-bar-vertical-label">WIN %</div>
                     <div className="equity-bar-vertical-track">
-                      <div className="equity-bar-segment equity-bar-villain" style={{ height: `${pctB}%`, background: colorOf(pctB) }} />
-                      <div className="equity-bar-segment equity-bar-hero" style={{ height: `${pctA}%`, background: colorOf(pctA) }} />
+                      <div className="equity-bar-segment equity-bar-villain" style={{ height: `${pctB}%`, background: colorForVillain(pctB) }} />
+                      <div className="equity-bar-segment equity-bar-hero" style={{ height: `${pctA}%`, background: colorForHero(pctA) }} />
                     </div>
                     <div className="equity-bar-vertical-pcts">
-                      <span style={{ color: colorOf(pctB) }}>{pctB.toFixed(0)}</span>
-                      <span style={{ color: colorOf(pctA) }}>{pctA.toFixed(0)}</span>
+                      <span style={{ color: colorForVillain(pctB) }}>{pctB.toFixed(0)}</span>
+                      <span style={{ color: colorForHero(pctA) }}>{pctA.toFixed(0)}</span>
                     </div>
                   </div>
                 )
