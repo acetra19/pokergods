@@ -112,6 +112,12 @@ const [showEmoji, setShowEmoji] = useState(false)
   // Hold last table frame between win moment and overlay navigation to avoid flicker
   const postHoldUntilMsRef = useRef<number>(0)
   const tableSnapshotRef = useRef<any|null>(null)
+  // Prevent summary/endscreen from being opened more than once per match end
+  const summaryRedirectDoneRef = useRef<boolean>(false)
+  // When table vanishes during showdown, hold snapshot so reveal + overlay can run (no "no cards" then endscreen)
+  const holdingShowdownUntilRef = useRef<number>(0)
+  const holdingShowdownTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const pendingStatesAfterHoldRef = useRef<any[]>([])
   // Trigger re-render when profile cache updates (to show avatars/initials)
   const [profileEpoch, setProfileEpoch] = useState<number>(0)
   // Track match boundaries (tableId change)
@@ -203,8 +209,35 @@ const [showEmoji, setShowEmoji] = useState(false)
           if (handFrozenRef.current) {
             pendingHandRef.current = states
           } else {
-            setHand(states)
-            pendingHandRef.current = null
+            const snap = lastShowdownStateRef.current
+            const now = Date.now()
+            if (holdingShowdownUntilRef.current > now) {
+              if (mine) {
+                try { if (holdingShowdownTimerRef.current) { clearTimeout(holdingShowdownTimerRef.current); holdingShowdownTimerRef.current = null } } catch {}
+                holdingShowdownUntilRef.current = 0
+                setHand(states)
+                pendingHandRef.current = null
+              }
+            } else if (!mine && snap && (snap.community?.length ?? 0) >= 5 &&
+                Array.isArray(snap.showdownInfo) && snap.showdownInfo.length > 0 &&
+                snap.players?.some((p:any)=> p?.playerId === wallet) &&
+                snap.players?.some((p:any)=> p?.busted || (p?.chips ?? 0) <= 0) &&
+                revealedCountRef.current < 5) {
+              try { if (holdingShowdownTimerRef.current) clearTimeout(holdingShowdownTimerRef.current) } catch {}
+              pendingStatesAfterHoldRef.current = states
+              setHand([snap])
+              holdingShowdownUntilRef.current = now + 8000
+              holdingShowdownTimerRef.current = setTimeout(() => {
+                holdingShowdownTimerRef.current = null
+                holdingShowdownUntilRef.current = 0
+                setHand(pendingStatesAfterHoldRef.current || [])
+                navigateToSummary()
+              }, 8000)
+              pendingHandRef.current = null
+            } else {
+              setHand(states)
+              pendingHandRef.current = null
+            }
           }
           try {
             const tid = (mine && mine.tableId) || (states[0]?.tableId)
@@ -351,9 +384,12 @@ const [showEmoji, setShowEmoji] = useState(false)
           if (!amParticipant) return
           // Let the overlay flow handle it if already armed or visible
           if (overlayStateRef.current === 'visible' || overlayStateRef.current === 'armed') return
-          // Save last showdown state as failsafe and redirect
           const snap = lastShowdownStateRef.current
-          if (snap && lastShowdownRef.current && (Date.now() - lastShowdownRef.current.ts) < 8000) {
+          const recent = snap && lastShowdownRef.current && (Date.now() - lastShowdownRef.current.ts) < 8000
+          // If we have a full showdown to show but haven't revealed yet, don't redirect now – let reveal + overlay or holding flow do it
+          const hasFullShowdown = !!(snap?.community?.length >= 5 && Array.isArray(snap.showdownInfo) && snap.showdownInfo.length > 0)
+          if (recent && hasFullShowdown && revealedCountRef.current < 5) return
+          if (recent && snap) {
             try {
               const winnersEnriched = (snap.lastWinners || []).map((w:any)=> ({ ...w, displayName: nameOf(w.playerId) }))
               const showdownEnriched = (snap.showdownInfo || []).map((s:any)=> ({ ...s, displayName: nameOf(s.playerId) }))
@@ -362,7 +398,7 @@ const [showEmoji, setShowEmoji] = useState(false)
               sessionStorage.setItem('pg_last_match', JSON.stringify({ tableId: snap.tableId, handNumber: snap.handNumber, community: snap.community||[], holesByPlayer, winners: winnersEnriched, showdownInfo: showdownEnriched, you: wallet }))
             } catch {}
           }
-          window.location.hash = '#/summary'
+          navigateToSummary()
         } catch {}
       }
       if ((m as any)?.type === 'emoji') {
@@ -470,7 +506,13 @@ const [showEmoji, setShowEmoji] = useState(false)
       }
       
     }, (status)=>{ setWsStatus(status) })
-    return () => { try { if (handPollId) clearInterval(handPollId) } catch {}; try { if (switchTimeout) clearTimeout(switchTimeout) } catch {}; try { mo && mo.disconnect() } catch {}; ws.close() }
+    return () => {
+      try { if (holdingShowdownTimerRef.current) clearTimeout(holdingShowdownTimerRef.current); holdingShowdownTimerRef.current = null } catch {}
+      try { if (handPollId) clearInterval(handPollId) } catch {}
+      try { if (switchTimeout) clearTimeout(switchTimeout) } catch {}
+      try { mo && mo.disconnect() } catch {}
+      ws.close()
+    }
   }, [])
 
   // Live ticker for countdowns (smooth ring animation)
@@ -717,7 +759,7 @@ const [showEmoji, setShowEmoji] = useState(false)
             try {
               handFrozenRef.current = false
               pendingHandRef.current = null
-              window.location.hash = '#/summary'
+              navigateToSummary()
             } catch {}
           }, 6500)
           // (Overlay-State ist bereits gesetzt)
@@ -1001,7 +1043,11 @@ const [showEmoji, setShowEmoji] = useState(false)
   const hadTableRef = useRef<boolean>(false)
   const redirectTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   useEffect(() => {
-    if (renderTables.length > 0) { hadTableRef.current = true; return }
+    if (renderTables.length > 0) {
+      hadTableRef.current = true
+      summaryRedirectDoneRef.current = false
+      return
+    }
     if (!hadTableRef.current || renderTables.length !== 0) return
     // If table vanished right after a real showdown, fail-safe navigate to summary using last cached showdown state
     try { if (redirectTimerRef.current) { clearTimeout(redirectTimerRef.current) } } catch {}
@@ -1019,13 +1065,20 @@ const [showEmoji, setShowEmoji] = useState(false)
             try { (snap.players||[]).forEach((p:any)=> { holesByPlayer[p.playerId] = p.hole || null }) } catch {}
             sessionStorage.setItem('pg_last_match', JSON.stringify({ tableId: snap.tableId, handNumber: snap.handNumber, community: snap.community||[], holesByPlayer, winners: winnersEnriched, showdownInfo: showdownEnriched, you: wallet }))
           } catch {}
-          window.location.hash = '#/summary'
+          navigateToSummary()
         }
       } catch {}
       hadTableRef.current = false
     }, 600)
     return () => { try { if (redirectTimerRef.current) clearTimeout(redirectTimerRef.current) } catch {} }
   }, [renderTables.length, showOverlay])
+
+  // Single place to go to summary; prevents double redirect from hu_postmatch + overlay timeout + vanish effect
+  const navigateToSummary = useCallback(() => {
+    if (summaryRedirectDoneRef.current) return
+    summaryRedirectDoneRef.current = true
+    window.location.hash = '#/summary'
+  }, [])
 
   function addFloat(text: string, xPct: number, yPct: number, size?: number, style?: string) {
     const id = Math.random().toString(36).slice(2)
